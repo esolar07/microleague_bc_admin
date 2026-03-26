@@ -1,97 +1,183 @@
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* MicroLeague Admin Design System - matches FE aesthetic */
 
 @layer base {
   :root {
-    --background: 0 0% 95%; /* #F3F3F3 main app background */
-    --foreground: 0 0% 7%; /* #121212 */
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
 
-    --card: 0 0% 98%;
-    --card-foreground: 0 0% 7%; /* #121212 */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%; /* #121212 */
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 267 94% 51%;
+    /* MicroLeague Blue - Coinbase-inspired */
+    --primary: 220 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 267 94% 51%;
-    --secondary-foreground: 0 0% 100%;
+    /* Light blue accent */
+    --secondary: 210 100% 96%;
+    --secondary-foreground: 220 100% 40%;
 
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 40%; /* #666666 */
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 267 94% 51%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 220 100% 97%;
+    --accent-foreground: 220 100% 45%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 267 94% 51%;
+    --success: 152 76% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 220 100% 50%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 267 94% 51%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 90%;
-    --sidebar-accent-foreground: 267 94% 51%;
-    --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 267 94% 51%;
+    /* MicroLeague specific tokens */
+    --mlc-blue: 220 100% 50%;
+    --mlc-blue-light: 220 100% 60%;
+    --mlc-blue-dark: 220 100% 40%;
+    --mlc-surface: 210 40% 98%;
+    --mlc-gradient-start: 220 100% 50%;
+    --mlc-gradient-end: 200 100% 45%;
 
-    /* Crypto theme custom tokens */
-    --neon-glow: 267 94% 51%;
-    --gradient-start: 267 94% 51%;
-    --gradient-end: 267 84% 64%;
-    --success: 142 76% 36%;
-    --warning: 38 92% 50%;
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(220 20% 20% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(220 20% 20% / 0.1), 0 2px 4px -2px hsl(220 20% 20% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(220 20% 20% / 0.1), 0 4px 6px -4px hsl(220 20% 20% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(220 20% 20% / 0.1), 0 8px 10px -6px hsl(220 20% 20% / 0.1);
+    --shadow-glow: 0 0 40px hsl(220 100% 50% / 0.15);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
-    font-family: "Poppins", sans-serif;
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: "Poppins", sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
   }
 }
-.Buttonbg {
-  background: linear-gradient(90deg, #7529ed 0%, #4a5bf1 100%);
+
+@layer components {
+  .mlc-card {
+    @apply bg-card rounded-2xl border border-border shadow-[var(--shadow-md)] p-6;
+  }
+
+  .mlc-card-elevated {
+    @apply bg-card rounded-2xl border border-border shadow-[var(--shadow-lg)] p-6 hover:shadow-[var(--shadow-xl)] transition-shadow duration-300;
+  }
+
+  .mlc-gradient-bg {
+    background: linear-gradient(135deg, hsl(var(--mlc-gradient-start)) 0%, hsl(var(--mlc-gradient-end)) 100%);
+  }
+
+  .mlc-gradient-text {
+    background: linear-gradient(135deg, hsl(var(--mlc-blue)) 0%, hsl(var(--mlc-blue-light)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .mlc-input {
+    @apply w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200;
+  }
+
+  .mlc-btn-primary {
+    @apply px-6 py-3 rounded-xl font-semibold text-primary-foreground mlc-gradient-bg hover:opacity-90 transition-all duration-200 shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)];
+  }
+
+  .mlc-btn-secondary {
+    @apply px-6 py-3 rounded-xl font-semibold bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 border border-border;
+  }
+
+  .mlc-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground;
+  }
+
+  .mlc-badge-primary {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary;
+  }
 }
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px hsl(220 100% 50% / 0.2); }
+    50% { box-shadow: 0 0 40px hsl(220 100% 50% / 0.4); }
+  }
+}
+
+/* Legacy admin utility classes */
+.Buttonbg {
+  background: linear-gradient(135deg, hsl(var(--mlc-gradient-start)) 0%, hsl(var(--mlc-gradient-end)) 100%);
+}
+
 .bd {
   border: 1px solid red;
 }
+
 .cardShadow {
-  box-shadow: 0px 0px 20px 0px #0000000f;
+  box-shadow: var(--shadow-md);
 }
+
 .dynamic-shadow-dom {
   --dynamic-connect-button-background: #ffff;
-  --dynamic-connect-button-color: #4a5bf1; /* fallback color */
+  --dynamic-connect-button-color: hsl(var(--primary));
   --dynamic-connect-button-border: 1px solid #ffff;
   --dynamic-connect-button-shadow: none;
   --dynamic-connect-button-background-hover: #ffff;
-  --dynamic-connect-button-color-hover: #4a5bf1;
+  --dynamic-connect-button-color-hover: hsl(var(--primary));
   --dynamic-connect-button-border-hover: 1px solid #ffff;
   --dynamic-connect-button-shadow-hover: none;
   --dynamic-tooltip-color: #000;
   --dynamic-tooltip-text-color: #fff;
   --dynamic-connect-button-radius: 5rem;
-  /* Gradient Text Color */
-  background: linear-gradient(to right, #7529ed, #4a5bf1);
+  background: linear-gradient(135deg, hsl(var(--mlc-gradient-start)) 0%, hsl(var(--mlc-gradient-end)) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
