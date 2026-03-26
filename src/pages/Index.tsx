@@ -52,15 +52,13 @@ const Index = () => {
             </div>
 
             <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-white drop-shadow-lg">
-              Microleague Coin
-              <span className="block text-2xl font-semibold mt-1 text-primary/80">
-                Admin Dashboard
-              </span>
+              Microleague Coin (MLC)
+
+
             </h1>
 
             <p className="text-base md:text-lg text-white/70 leading-relaxed mb-10">
-              Manage MLC presale stages, buyers, verifications, and token
-              operations from one place.
+              Access the Microleague Coin presale dashboard and manage MLC stages, buyers, verifications, and token operations from one place.
             </p>
 
             <div className="flex justify-center">
