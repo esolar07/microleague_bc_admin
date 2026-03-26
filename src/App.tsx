@@ -28,6 +28,7 @@ const App = () => (
         <Route path="/dashboard/transactions" element={<Transactions />} />
         <Route path="/dashboard/bank-transfer" element={<BankTransfer />} />
         <Route path="/dashboard/settings" element={<UserSettings />} /> */}
+
           <Route
             path="/admin"
             element={
