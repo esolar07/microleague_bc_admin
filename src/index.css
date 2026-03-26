@@ -1,0 +1,99 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 95%; /* #F3F3F3 main app background */
+    --foreground: 0 0% 7%; /* #121212 */
+
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 7%; /* #121212 */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%; /* #121212 */
+
+    --primary: 267 94% 51%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 267 94% 51%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 40%; /* #666666 */
+
+    --accent: 267 94% 51%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 267 94% 51%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 267 94% 51%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 90%;
+    --sidebar-accent-foreground: 267 94% 51%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 267 94% 51%;
+
+    /* Crypto theme custom tokens */
+    --neon-glow: 267 94% 51%;
+    --gradient-start: 267 94% 51%;
+    --gradient-end: 267 84% 64%;
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    font-family: "Poppins", sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Poppins", sans-serif;
+  }
+}
+.Buttonbg {
+  background: linear-gradient(90deg, #7529ed 0%, #4a5bf1 100%);
+}
+.bd {
+  border: 1px solid red;
+}
+.cardShadow {
+  box-shadow: 0px 0px 20px 0px #0000000f;
+}
+.dynamic-shadow-dom {
+  --dynamic-connect-button-background: #ffff;
+  --dynamic-connect-button-color: #4a5bf1; /* fallback color */
+  --dynamic-connect-button-border: 1px solid #ffff;
+  --dynamic-connect-button-shadow: none;
+  --dynamic-connect-button-background-hover: #ffff;
+  --dynamic-connect-button-color-hover: #4a5bf1;
+  --dynamic-connect-button-border-hover: 1px solid #ffff;
+  --dynamic-connect-button-shadow-hover: none;
+  --dynamic-tooltip-color: #000;
+  --dynamic-tooltip-text-color: #fff;
+  --dynamic-connect-button-radius: 5rem;
+  /* Gradient Text Color */
+  background: linear-gradient(to right, #7529ed, #4a5bf1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+}
