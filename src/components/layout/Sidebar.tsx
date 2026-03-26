@@ -59,9 +59,8 @@ export const Sidebar = ({ userType, isOpen, onClose }: SidebarProps) => {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex flex-col z-50 transition-transform duration-300 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } sm:translate-x-0`}
+      className={`fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex flex-col z-50 transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full"
+        } sm:translate-x-0`}
     >
       <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <img src="/assets/images/logo.webp" alt="Microleague Coin MLC" className="w-28" />
@@ -93,11 +92,10 @@ export const Sidebar = ({ userType, isOpen, onClose }: SidebarProps) => {
                     <li key={item.path}>
                       <NavLink
                         to={item.path}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                          isActive
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-gray-700 hover:bg-gray-50"
+                          }`}
                       >
                         <Icon className="w-5 h-5 flex-shrink-0" />
                         <span>{item.label}</span>
@@ -118,11 +116,10 @@ export const Sidebar = ({ userType, isOpen, onClose }: SidebarProps) => {
                 <li key={item.path}>
                   <NavLink
                     to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-gray-700 hover:bg-gray-50"
+                      }`}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
                     <span>{item.label}</span>
