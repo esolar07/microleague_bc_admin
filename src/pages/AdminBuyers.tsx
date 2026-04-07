@@ -126,10 +126,10 @@ const AdminBuyers = () => {
         },
         onError: (error) => {
           toast.error(
-            error.response?.data?.message || "Failed to update status"
+            error.response?.data?.message || "Failed to update status",
           );
         },
-      }
+      },
     );
   };
 
@@ -155,7 +155,7 @@ const AdminBuyers = () => {
       unclaimed: Math.floor(Math.random() * 200000),
       referrals: Math.floor(Math.random() * 10),
       joinDate: new Date(
-        Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000
+        Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000,
       ).toISOString(),
       status: Math.random() > 0.2 ? BuyerStatus.ACTIVE : BuyerStatus.INACTIVE,
     });
@@ -282,7 +282,7 @@ const AdminBuyers = () => {
           <Card className="cardShadow bg-white p-5 rounded-[20px] hover:border-primary/30 transition-all flex items-center justify-between gap-1">
             <div>
               <p className="text-sm text-muted-foreground mb-2">Avg Purchase</p>
-              <p className="text-3xl font-bold text-accent">
+              <p className="text-3xl font-bold text-black">
                 {formatNumber(stats.avgPurchase)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">per buyer</p>
@@ -364,7 +364,9 @@ const AdminBuyers = () => {
                 <TableHead className="text-muted-foreground">
                   Referrals
                 </TableHead>
-                <TableHead className="text-muted-foreground">Reputation</TableHead>
+                <TableHead className="text-muted-foreground">
+                  Reputation
+                </TableHead>
                 <TableHead className="text-muted-foreground">Status</TableHead>
                 <TableHead className="text-muted-foreground">Actions</TableHead>
               </TableRow>
@@ -425,12 +427,12 @@ const AdminBuyers = () => {
                               buyer.reputationTier === "Excellent"
                                 ? "border-green-500 text-green-600 bg-green-50"
                                 : buyer.reputationTier === "Good"
-                                ? "border-blue-500 text-blue-600 bg-blue-50"
-                                : buyer.reputationTier === "Fair"
-                                ? "border-amber-500 text-amber-600 bg-amber-50"
-                                : buyer.reputationTier === "Poor"
-                                ? "border-orange-500 text-orange-600 bg-orange-50"
-                                : "border-red-500 text-red-600 bg-red-50"
+                                  ? "border-blue-500 text-blue-600 bg-blue-50"
+                                  : buyer.reputationTier === "Fair"
+                                    ? "border-amber-500 text-amber-600 bg-amber-50"
+                                    : buyer.reputationTier === "Poor"
+                                      ? "border-orange-500 text-orange-600 bg-orange-50"
+                                      : "border-red-500 text-red-600 bg-red-50"
                             }
                           >
                             {buyer.reputationTier} · {buyer.reputationScore}
@@ -506,7 +508,7 @@ const AdminBuyers = () => {
                                   </div>
                                   <p className="text-lg font-semibold text-foreground">
                                     {formatterNumber(
-                                      selectedBuyer.tokensPurchased
+                                      selectedBuyer.tokensPurchased,
                                     )}
                                   </p>
                                 </div>
@@ -607,7 +609,7 @@ const AdminBuyers = () => {
                                           selectedBuyer,
                                           checked
                                             ? BuyerStatus.ACTIVE
-                                            : BuyerStatus.INACTIVE
+                                            : BuyerStatus.INACTIVE,
                                         )
                                       }
                                       disabled={updateMutation.isPending}
