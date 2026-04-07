@@ -1,14 +1,12 @@
-import { http, createConfig } from "wagmi";
+import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { mainnet, sepolia } from "wagmi/chains";
+import { http } from "wagmi";
 
-// Use env-var RPC URLs so useWaitForTransactionReceipt can reliably detect
-// confirmations. Default public endpoints are rate-limited and cause the hook
-// to hang indefinitely even after a tx is confirmed on-chain.
-export const wagmiConfig = createConfig({
+export const wagmiConfig = getDefaultConfig({
+  appName: "MicroLeague Presale Admin",
+  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
   chains: [mainnet, sepolia],
   transports: {
-    // [mainnet.id]: http(import.meta.env.VITE_MAINNET_RPC_URL),
-    // [sepolia.id]: http(import.meta.env.VITE_SEPOLIA_RPC_URL),
     [mainnet.id]: http(),
     [sepolia.id]: http(),
   },

@@ -45,7 +45,6 @@ import {
 } from "@/lib/contracts/tokenPresale";
 import { sepolia } from "viem/chains";
 import { TokenPresale__factory } from "@/contracts/typechain";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useEthersSigner } from "@/hooks/useEtherSigner";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;

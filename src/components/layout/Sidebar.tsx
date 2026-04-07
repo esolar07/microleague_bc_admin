@@ -2,7 +2,6 @@ import { Home, Coins, Users, History, Settings, BarChart3, Shield, Building2, Ch
 import { NavLink } from "@/components/NavLink";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAdmin } from "@/hooks/useAdmin";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 
 interface SidebarProps {
   userType: "user" | "admin";
@@ -29,21 +28,15 @@ const presaleMenuItems = [
 ];
 
 export const Sidebar = ({ userType, isOpen, onClose }: SidebarProps) => {
-  const { clearAuthData } = useAdmin();
+  const { clearAuthData, disconnect } = useAdmin();
   const navigate = useNavigate();
   const location = useLocation();
-  const { handleLogOut } = useDynamicContext();
 
   const handleLogout = async () => {
     try {
       clearAuthData();
-      if (handleLogOut) {
-        await handleLogOut();
-      }
+      disconnect();
       navigate("/", { replace: true });
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 100);
     } catch (error) {
       console.error("Logout error:", error);
       navigate("/", { replace: true });

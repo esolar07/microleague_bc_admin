@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect } from "react";
 import { useAdmin } from "@/hooks/useAdmin";
 
@@ -53,22 +53,16 @@ const Index = () => {
 
             <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-white drop-shadow-lg">
               Microleague Coin (MLC)
-
-
             </h1>
 
             <p className="text-base md:text-lg text-white/70 leading-relaxed mb-10">
-              Access the Microleague Coin presale dashboard and manage MLC stages, buyers, verifications, and token operations from one place.
+              Access the Microleague Coin presale dashboard and manage MLC
+              stages, buyers, verifications, and token operations from one
+              place.
             </p>
 
             <div className="flex justify-center">
-              <DynamicWidget
-                innerButtonComponent={
-                  <button className="px-8 py-3 text-base font-semibold rounded-full bg-primary text-white transition-all hover:bg-primary/90 shadow-[0_0_20px_hsl(220_100%_50%_/_0.4)] hover:shadow-[0_0_30px_hsl(220_100%_50%_/_0.6)]">
-                    Connect Wallet
-                  </button>
-                }
-              />
+              <ConnectButton />
             </div>
 
             {isAuthenticated && !isAdmin && !isLoading && (

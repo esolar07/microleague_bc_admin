@@ -1,14 +1,12 @@
-import React, { createContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import Cookies from "js-cookie";
+import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { HttpService } from "@/services/base.service";
-import {
-  useDynamicContext,
-  useIsLoggedIn,
-  getAuthToken,
-} from "@dynamic-labs/sdk-react-core";
+import { authService } from "@/services/auth.service";
 import { IAdmin } from "@/types/admin.interface";
 import { adminService } from "@/services/admin.service";
+
+const TOKEN_KEY = "mlc_admin_jwt";
 
 interface AuthContextProps {
   token: string | null;
@@ -18,127 +16,143 @@ interface AuthContextProps {
   isLoading: boolean;
   error: string | null;
   address: string | null;
+  disconnect: () => void;
 }
 
 const AdminContext = createContext<AuthContextProps | undefined>(undefined);
 
 const AdminProvider = ({ children }: { children: React.ReactNode }) => {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const signingRef = useRef(false);
   const queryClient = useQueryClient();
-  const { primaryWallet, sdkHasLoaded, user } = useDynamicContext();
-  const isLoggedIn = useIsLoggedIn();
+  const { address, isConnected, status } = useAccount();
+  const { disconnect: wagmiDisconnect } = useDisconnect();
+  const { signMessageAsync } = useSignMessage();
 
-  const address = user?.verifiedCredentials?.[0]?.address;
-
-  const isAuthenticated = Boolean(
-    isLoggedIn && primaryWallet?.address && sdkHasLoaded
-  );
+  const isAuthenticated = isConnected && Boolean(address) && Boolean(token);
 
   const {
     data: adminData,
     isLoading: adminQueryLoading,
     error: adminQueryError,
   } = useQuery<IAdmin>({
-    queryKey: ["admin", primaryWallet?.address],
+    queryKey: ["admin", address],
     queryFn: adminService.getAdmin,
-    enabled:
-      isAuthenticated && Boolean(primaryWallet?.address) && Boolean(token),
-    retry: (failureCount, error) => {
-      // Don't retry if it's a 401/403 error (unauthorized)
-      if (
-        error &&
-        "status" in error &&
-        (error.status === 401 || error.status === 403)
-      ) {
+    enabled: isAuthenticated && Boolean(address) && Boolean(token),
+    retry: (failureCount, err) => {
+      if (err && "status" in err && (err.status === 401 || err.status === 403)) {
         return false;
       }
       return failureCount < 3;
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const isAdmin = Boolean(adminData?.data?.data?.address);
 
-  // Clear authentication data
   const clearAuthData = useCallback(() => {
-    localStorage.removeItem("dynamic_authentication_token");
-    Cookies.remove("dynamic_authentication_token");
+    localStorage.removeItem(TOKEN_KEY);
     queryClient.removeQueries({ queryKey: ["admin"] });
     setToken(null);
     setError(null);
     HttpService.setToken("");
   }, [queryClient]);
 
-  // Handle authentication token management
+  const disconnect = useCallback(() => {
+    clearAuthData();
+    wagmiDisconnect();
+  }, [clearAuthData, wagmiDisconnect]);
+
+  // Restore JWT from localStorage on mount
   useEffect(() => {
-    if (!sdkHasLoaded) {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (stored) {
+      setToken(stored);
+      HttpService.setToken(stored);
+    }
+  }, []);
+
+  // Sign-in flow: when wallet connects and we don't have a token, request nonce → sign → verify
+  useEffect(() => {
+    if (status === "connecting" || status === "reconnecting") {
       setIsLoading(true);
       return;
     }
 
-    if (isAuthenticated) {
-      try {
-        // Use Dynamic's getAuthToken utility
-        const authToken = getAuthToken();
-
-        if (authToken) {
-          setToken(authToken);
-          HttpService.setToken(authToken);
-          setError(null);
-          setIsLoading(false);
-        } else {
-          // Fallback to localStorage token if getAuthToken returns null
-          const storedToken = localStorage.getItem(
-            "dynamic_authentication_token"
-          );
-          const cleanedToken = storedToken?.replace(/^"|"$/g, "");
-
-          if (cleanedToken) {
-            setToken(cleanedToken);
-            HttpService.setToken(cleanedToken);
-            setError(null);
-          } else {
-            setError("No authentication token found");
-          }
-          setIsLoading(false);
-        }
-      } catch (err) {
-        console.error("Error getting auth token:", err);
-        setError("Failed to retrieve authentication token");
-        setIsLoading(false);
-      }
-    } else {
-      // Not authenticated
+    if (!isConnected || !address) {
       clearAuthData();
       setIsLoading(false);
+      return;
     }
-  }, [isAuthenticated, sdkHasLoaded, clearAuthData]);
 
-  // Handle loading state
+    // Already have a valid token for this address
+    if (token) {
+      HttpService.setToken(token);
+      setIsLoading(false);
+      return;
+    }
+
+    // Prevent concurrent signing attempts
+    if (signingRef.current) return;
+
+    const authenticate = async () => {
+      signingRef.current = true;
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Step 1: Get nonce from backend
+        const { message } = await authService.getNonce(address);
+
+        // Step 2: Ask the user to sign the message via their wallet
+        const signature = await signMessageAsync({ message, account: address });
+
+        // Step 3: Send signature to backend, receive JWT
+        const { token: jwt } = await authService.verify(address, signature, message);
+
+        // Store and apply
+        localStorage.setItem(TOKEN_KEY, jwt);
+        setToken(jwt);
+        HttpService.setToken(jwt);
+      } catch (err: any) {
+        console.error("Auth failed:", err);
+        // If user rejected the signature, disconnect the wallet
+        if (err?.code === 4001 || err?.message?.includes("User rejected")) {
+          setError("Signature rejected");
+          wagmiDisconnect();
+        } else {
+          setError(err?.message || "Authentication failed");
+        }
+      } finally {
+        signingRef.current = false;
+        setIsLoading(false);
+      }
+    };
+
+    authenticate();
+  }, [isConnected, address, status, token, signMessageAsync, clearAuthData, wagmiDisconnect]);
+
+  // Clear token when wallet disconnects
+  useEffect(() => {
+    if (!isConnected) {
+      clearAuthData();
+    }
+  }, [isConnected, clearAuthData]);
+
   const overallLoading =
-    !sdkHasLoaded || isLoading || (isAuthenticated && adminQueryLoading);
+    status === "connecting" ||
+    status === "reconnecting" ||
+    isLoading ||
+    (isAuthenticated && adminQueryLoading);
 
-  // Set error from admin query
   useEffect(() => {
     if (adminQueryError) {
       setError("Failed to verify admin permissions");
     }
   }, [adminQueryError]);
-
-  console.log({
-    isLoggedIn,
-    isAuthenticated,
-    isAdmin,
-    primaryWallet: primaryWallet?.address,
-    sdkHasLoaded,
-    overallLoading,
-    hasToken: Boolean(token),
-    error,
-    address,
-  });
 
   return (
     <AdminContext.Provider
@@ -149,7 +163,8 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
         isAdmin,
         isLoading: overallLoading,
         error,
-        address,
+        address: address ?? null,
+        disconnect,
       }}
     >
       {children}
