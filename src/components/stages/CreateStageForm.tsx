@@ -15,7 +15,7 @@ export type StageFormShape = {
   cliffDays: string;
   durationDays: string;
   whitelistOnly: boolean;
-  releaseIntervalDays:any
+  releaseIntervalDays: any;
 };
 
 type Props = {
@@ -294,7 +294,9 @@ export default function CreateStageForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="releaseIntervalDays">Release Interval (days)</Label>
+          <Label htmlFor="releaseIntervalDays">
+            Release Interval (minutes)
+          </Label>
           <Input
             id="releaseIntervalDays"
             type="number"
@@ -310,7 +312,7 @@ export default function CreateStageForm({
             className="bg-background border-border"
           />
           <p className="text-xs text-muted-foreground">
-            Interval in days between token releases during vesting
+            Interval in minutes between token releases during vesting
           </p>
         </div>
       </div>

@@ -289,12 +289,21 @@ const AdminStages = () => {
   const decimals = saleTokenDecimals ? Number(saleTokenDecimals) : 18;
 
   const parseDaysToSeconds = (value: string) => {
-    const minutes = Number(value); // Changed from days
-    if (!Number.isFinite(minutes) || minutes < 0) {
+    const days = Number(value);
+    if (!Number.isFinite(days) || days < 0) {
       throw new Error("Cliff and duration must be non-negative numbers.");
     }
 
-    return BigInt(Math.floor(minutes)) * 60n; // Changed from 86_400n to 60n
+    return BigInt(Math.floor(days)) * 86_400n;
+  };
+
+  const parseMinutesToSeconds = (value: string) => {
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes) || minutes < 0) {
+      throw new Error("Release interval must be a non-negative number.");
+    }
+
+    return BigInt(Math.floor(minutes)) * 60n;
   };
   const normalizeStageForm = (form: StageFormState) => {
     const requiredFields: Array<[keyof StageFormState, string]> = [
@@ -330,7 +339,7 @@ const AdminStages = () => {
 
     if (maxBuyTokens <= minBuyTokens) {
       throw new Error(
-        "Maximum purchase must be greater than minimum purchase."
+        "Maximum purchase must be greater than minimum purchase.",
       );
     }
 
@@ -340,7 +349,7 @@ const AdminStages = () => {
       : 0n;
 
     const releaseInterval = form.releaseIntervalDays
-      ? parseDaysToSeconds(form.releaseIntervalDays)
+      ? parseMinutesToSeconds(form.releaseIntervalDays)
       : 0n;
 
     return {
@@ -359,7 +368,7 @@ const AdminStages = () => {
   const totalStages = stagesCount ? Number(stagesCount) : 0;
   const stageIndexes = useMemo(
     () => Array.from({ length: totalStages }, (_, index) => index),
-    [totalStages]
+    [totalStages],
   );
 
   const contracts = useMemo(
@@ -370,7 +379,7 @@ const AdminStages = () => {
         functionName: "getStage",
         args: [BigInt(index)],
       })),
-    [stageIndexes]
+    [stageIndexes],
   );
 
   const {
@@ -554,12 +563,10 @@ const AdminStages = () => {
         raw.duration === 0n ? "" : (Number(raw.duration) / 86_400).toString(),
       // active: raw.active,
       whitelistOnly: raw.whitelistOnly,
-      // releaseIntervalDays:
-      //   raw.releaseInterval === 0n
-      //     ? ""
-      //     : (Number(raw.releaseInterval) / 86_400).toString(),
       releaseIntervalDays:
-        raw.releaseInterval === 0n ? "" : Number(120).toString(), // Changed from 86_400 to 60
+        raw.releaseInterval === 0n
+          ? ""
+          : (Number(raw.releaseInterval) / 60).toString(),
     });
 
     setEditingStageId(stage.id);
@@ -666,7 +673,6 @@ const AdminStages = () => {
             ...normalized,
             soldAmount: stageToEdit.raw.soldAmount,
             // active: stageForm.active,
-            releaseInterval: 1800n,
             whitelistOnly: stageForm.whitelistOnly,
           },
         ],
@@ -974,7 +980,7 @@ const AdminStages = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="releaseIntervalDays-edit">
-                    Release Interval (minutes) {/* Changed from (days) */}
+                    Release Interval (minutes)
                   </Label>
                   <Input
                     id="releaseIntervalDays-edit"
@@ -991,8 +997,7 @@ const AdminStages = () => {
                     className="bg-background border-border"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Interval in minutes between token releases during vesting{" "}
-                    {/* Changed from days */}
+                    Interval in minutes between token releases during vesting
                   </p>
                 </div>
 
