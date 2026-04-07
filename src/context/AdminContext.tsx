@@ -1,4 +1,10 @@
-import React, { createContext, useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { HttpService } from "@/services/base.service";
@@ -22,7 +28,13 @@ interface AuthContextProps {
 const AdminContext = createContext<AuthContextProps | undefined>(undefined);
 
 const AdminProvider = ({ children }: { children: React.ReactNode }) => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  // Initialize token from storage synchronously
+  const storedToken = localStorage.getItem(TOKEN_KEY);
+  if (storedToken) {
+    HttpService.setToken(storedToken);
+  }
+
+  const [token, setToken] = useState<string | null>(storedToken);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const signingRef = useRef(false);
@@ -42,7 +54,11 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
     queryFn: adminService.getAdmin,
     enabled: isAuthenticated && Boolean(address) && Boolean(token),
     retry: (failureCount, err) => {
-      if (err && "status" in err && (err.status === 401 || err.status === 403)) {
+      if (
+        err &&
+        "status" in err &&
+        (err.status === 401 || err.status === 403)
+      ) {
         return false;
       }
       return failureCount < 3;
@@ -65,15 +81,6 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
     clearAuthData();
     wagmiDisconnect();
   }, [clearAuthData, wagmiDisconnect]);
-
-  // Restore JWT from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) {
-      setToken(stored);
-      HttpService.setToken(stored);
-    }
-  }, []);
 
   // Sign-in flow: when wallet connects and we don't have a token, request nonce → sign → verify
   useEffect(() => {
@@ -111,7 +118,11 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
         const signature = await signMessageAsync({ message, account: address });
 
         // Step 3: Send signature to backend, receive JWT
-        const { token: jwt } = await authService.verify(address, signature, message);
+        const { token: jwt } = await authService.verify(
+          address,
+          signature,
+          message,
+        );
 
         // Store and apply
         localStorage.setItem(TOKEN_KEY, jwt);
@@ -133,7 +144,15 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     authenticate();
-  }, [isConnected, address, status, token, signMessageAsync, clearAuthData, wagmiDisconnect]);
+  }, [
+    isConnected,
+    address,
+    status,
+    token,
+    signMessageAsync,
+    clearAuthData,
+    wagmiDisconnect,
+  ]);
 
   // Clear token when wallet disconnects
   useEffect(() => {

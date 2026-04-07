@@ -15,7 +15,20 @@ export class HttpService {
     // Only add interceptors once, not for every service instance
     if (!interceptorsInitialized) {
       interceptorsInitialized = true;
-      
+
+      // Add a request interceptor to always include Bearer token
+      axios.interceptors.request.use(
+        (config) => {
+          const TOKEN_KEY = "mlc_admin_jwt";
+          const token = localStorage.getItem(TOKEN_KEY);
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          return config;
+        },
+        (error) => Promise.reject(error),
+      );
+
       // Add a response interceptor
       axios.interceptors.response.use(
         (response) => response, // Pass through successful responses
@@ -25,7 +38,7 @@ export class HttpService {
             HttpService.handleLogout();
           }
           return Promise.reject(error); // Handle other errors normally
-        }
+        },
       );
     }
   }

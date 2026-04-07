@@ -96,7 +96,6 @@ const AdminDashboard = () => {
   const { toast } = useToast();
 
   const [isCreateStageDialogOpen, setIsCreateStageDialogOpen] = useState(false);
-  const [isVestingDialogOpen, setIsVestingDialogOpen] = useState(false);
   const [isReferralDialogOpen, setIsReferralDialogOpen] = useState(false);
   const [isPauseDialogOpen, setIsPauseDialogOpen] = useState(false);
   const [transactionHash, setTransactionHash] = useState<
@@ -120,13 +119,6 @@ const AdminDashboard = () => {
     durationDays: "",
     whitelistOnly: false,
     releaseIntervalDays: "",
-  });
-
-  const [vestingForm, setVestingForm] = useState({
-    cliffPeriod: "",
-    vestingDuration: "",
-    releaseInterval: "",
-    vestingPercentage: "",
   });
 
   const [referralForm, setReferralForm] = useState({
@@ -842,8 +834,8 @@ const AdminDashboard = () => {
                         stage?.status === "Active"
                           ? "border-primary bg-white hover:shadow-sm"
                           : stage?.status === "Completed"
-                          ? "border-success bg-white hover:shadow-sm"
-                          : "border-border bg-muted/20"
+                            ? "border-success bg-white hover:shadow-sm"
+                            : "border-border bg-muted/20"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-4">
@@ -863,8 +855,8 @@ const AdminDashboard = () => {
                                 stage?.status === "Active"
                                   ? "bg-primary/20 text-primary"
                                   : stage?.status === "Completed"
-                                  ? "bg-success/20 text-success"
-                                  : "bg-muted text-muted-foreground"
+                                    ? "bg-success/20 text-success"
+                                    : "bg-muted text-muted-foreground"
                               }`}
                             >
                               {stage?.status}
@@ -931,147 +923,6 @@ const AdminDashboard = () => {
                       isConnected={isConnected}
                       onCancel={() => setIsCreateStageDialogOpen(false)}
                     />
-                  </DialogContent>
-                </Dialog>
-
-                {/* Vesting Configuration Dialog */}
-                <Dialog
-                  open={isVestingDialogOpen}
-                  onOpenChange={setIsVestingDialogOpen}
-                >
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full rounded-full py-3 font-medium border-primary text-primary"
-                    >
-                      VESTING SETTINGS
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-card border-border max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle className="text-foreground flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-primary" />
-                        Vesting Configuration
-                      </DialogTitle>
-                      <DialogDescription className="text-muted-foreground">
-                        Configure vesting parameters for token distribution
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-x-1">
-                            <Label htmlFor="cliffPeriod">
-                              Cliff Period (days)
-                            </Label>
-                            <div className="relative cursor-pointer group">
-                              <InfoIcon />
-                              <div className="absolute bottom-full hidden group-hover:block cardShadow left-0 bg-white rounded-[20px] p-5 w-[350px] text-center text-muted-foreground text-xs">
-                                The initial lock period during which no tokens
-                                are released to investors.
-                              </div>
-                            </div>
-                          </div>
-                          <Input
-                            id="cliffPeriod"
-                            type="number"
-                            value={vestingForm.cliffPeriod}
-                            onChange={(e) =>
-                              setVestingForm({
-                                ...vestingForm,
-                                cliffPeriod: e.target.value,
-                              })
-                            }
-                            className="bg-background border-border"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-x-1">
-                            <Label htmlFor="vestingDuration">
-                              Vesting Duration (days)
-                            </Label>
-                            <div className="relative cursor-pointer group">
-                              <InfoIcon />
-                              <div className="absolute bottom-full hidden group-hover:block cardShadow right-0 bg-white rounded-[20px] p-5 w-[350px] text-center text-muted-foreground text-xs">
-                                The total time over which tokens will be
-                                gradually released after the cliff period ends.
-                              </div>
-                            </div>
-                          </div>
-                          <Input
-                            id="vestingDuration"
-                            type="number"
-                            value={vestingForm.vestingDuration}
-                            onChange={(e) =>
-                              setVestingForm({
-                                ...vestingForm,
-                                vestingDuration: e.target.value,
-                              })
-                            }
-                            className="bg-background border-border"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-x-1">
-                            <Label htmlFor="releaseInterval">
-                              Release Interval (days)
-                            </Label>
-                            <div className="relative cursor-pointer group">
-                              <InfoIcon />
-                              <div className="absolute bottom-full hidden group-hover:block cardShadow left-0 bg-white rounded-[20px] p-5 w-[350px] text-center text-muted-foreground text-xs">
-                                How often tokens are released during the vesting
-                                period (e.g., every 30 days).
-                              </div>
-                            </div>
-                          </div>
-                          <Input
-                            id="releaseInterval"
-                            type="number"
-                            value={vestingForm.releaseInterval}
-                            onChange={(e) =>
-                              setVestingForm({
-                                ...vestingForm,
-                                releaseInterval: e.target.value,
-                              })
-                            }
-                            className="bg-background border-border"
-                            placeholder="Set via contract function"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-x-1">
-                            <Label htmlFor="vestingPercentage">
-                              Total Vesting (%)
-                            </Label>
-                            <div className="relative cursor-pointer group">
-                              <InfoIcon />
-                              <div className="absolute bottom-full hidden group-hover:block cardShadow right-0 bg-white rounded-[20px] p-5 w-[350px] text-center text-muted-foreground text-xs">
-                                The percentage of purchased tokens that will be
-                                vested and released over time.
-                              </div>
-                            </div>
-                          </div>
-                          <Input
-                            id="vestingPercentage"
-                            type="number"
-                            value={vestingForm.vestingPercentage}
-                            onChange={(e) =>
-                              setVestingForm({
-                                ...vestingForm,
-                                vestingPercentage: e.target.value,
-                              })
-                            }
-                            className="bg-background border-border"
-                            placeholder="Set via contract function"
-                          />
-                        </div>
-                      </div>
-                      <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                        Update Vesting Settings
-                      </Button>
-                    </div>
                   </DialogContent>
                 </Dialog>
 
@@ -1241,8 +1092,8 @@ const AdminDashboard = () => {
                               ? "Resuming..."
                               : "Pausing..."
                             : contractPaused
-                            ? "Resume Presale"
-                            : "Pause Presale"}
+                              ? "Resume Presale"
+                              : "Pause Presale"}
                         </Button>
                       </div>
                     </div>
