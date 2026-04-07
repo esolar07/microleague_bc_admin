@@ -26,7 +26,7 @@ class BankTransferService extends HttpService {
    */
   getAllBankTransfers = (params?: {
     search?: string;
-    status?: BankTransferStatus;
+    status?: BankTransferStatus | "All";
     page?: number;
     limit?: number;
     sort?: string;

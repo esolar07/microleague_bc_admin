@@ -15,22 +15,22 @@ export const truncateAddress = (
   return `${address.slice(0, start)}...${address.slice(-end)}`;
 };
 
-export const formatNumber = (num: number): string => {
+export const formatNumber = (num: number, decimals = 2): string => {
   if (!num) return "$0";
 
   const abs = Math.abs(num);
 
   if (abs >= 1_000_000_000) {
-    return `$${(num / 1_000_000_000).toFixed(2).replace(/\.00$/, "")} B`;
+    return `$${(num / 1_000_000_000).toFixed(decimals).replace(/\.00$/, "")} B`;
   }
   if (abs >= 1_000_000) {
-    return `$${(num / 1_000_000).toFixed(2).replace(/\.00$/, "")} M`;
+    return `$${(num / 1_000_000).toFixed(decimals).replace(/\.00$/, "")} M`;
   }
   if (abs >= 1_000) {
-    return `$${(num / 1_000).toFixed(2).replace(/\.00$/, "")} K`;
+    return `$${(num / 1_000).toFixed(decimals).replace(/\.00$/, "")} K`;
   }
 
-  return `$${num.toFixed(2)}`;
+  return `$${num.toFixed(decimals)}`;
 };
 
 export const formatWallet = (wallet: string) => {

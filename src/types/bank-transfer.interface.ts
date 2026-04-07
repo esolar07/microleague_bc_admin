@@ -55,19 +55,17 @@ export interface UpdateBankTransferData {
 export interface VerifyBankTransferData {
   status: BankTransferStatus.VERIFIED | BankTransferStatus.REJECTED;
   verificationNote?: string;
-  transactionHash?:string
-  allocatedTokens?:string
+  transactionHash?: string
+  allocatedTokens?: string
 }
 
 export interface BankTransferStats {
   data: {
-    data: {
-      pending: number;
-      verified: number;
-      rejected: number;
-      totalAmount: number;
-    };
-  };
+    pending: number;
+    verified: number;
+    rejected: number;
+    totalAmount: number;
+  }
 }
 
 export interface BankTransferListResponse {

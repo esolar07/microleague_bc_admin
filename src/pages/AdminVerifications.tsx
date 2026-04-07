@@ -260,9 +260,9 @@ const AdminVerifications = () => {
         account: address,
         chain: undefined,
       });
-      
+
       setTransactionHash(hash);
-      
+
       toast({
         title: "Transaction Submitted",
         description: "Waiting for blockchain confirmation...",
@@ -376,13 +376,13 @@ const AdminVerifications = () => {
   };
 
   // Stats with fallback
-  const stats = statsData?.data?.data?.data || {
+  const stats = statsData?.data?.data || {
     pending: 0,
     verified: 0,
     rejected: 0,
     totalAmount: 0,
   };
-  
+
   const createMutation = useCreateBankTransfer();
   const handleSubmit = (data: any) => {
     createMutation.mutate({
@@ -635,8 +635,8 @@ const AdminVerifications = () => {
                           transfer.status === BankTransferStatus.PENDING
                             ? "border-accent text-accent bg-accent/10"
                             : transfer.status === BankTransferStatus.VERIFIED
-                            ? "border-success text-success bg-success/10"
-                            : "border-destructive text-destructive bg-destructive/10"
+                              ? "border-success text-success bg-success/10"
+                              : "border-destructive text-destructive bg-destructive/10"
                         }
                       >
                         {transfer.status}
@@ -644,8 +644,8 @@ const AdminVerifications = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Dialog 
-                          open={isReviewDialogOpen && selectedTransaction?.id === transfer.id} 
+                        <Dialog
+                          open={isReviewDialogOpen && selectedTransaction?.id === transfer.id}
                           onOpenChange={(open) => {
                             setIsReviewDialogOpen(open);
                             if (!open) {
@@ -807,8 +807,8 @@ const AdminVerifications = () => {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="stage">Select Presale Stage</Label>
-                <Select 
-                  value={selectedStageId} 
+                <Select
+                  value={selectedStageId}
                   onValueChange={setSelectedStageId}
                   disabled={isProcessing}
                 >
@@ -829,7 +829,7 @@ const AdminVerifications = () => {
                           <div className="flex items-center justify-between w-full">
                             <span className="font-medium">{stage.name}</span>
                             <span className="ml-3">
-                              {formatNumber(stage.price)} per token
+                              {formatNumber(stage.price, 3)} per token
                             </span>
                           </div>
                         </SelectItem>
