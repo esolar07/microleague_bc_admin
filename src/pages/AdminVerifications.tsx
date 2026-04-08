@@ -106,7 +106,7 @@ const AdminVerifications = () => {
   // Create array of stage indexes
   const stageIndexes = useMemo(
     () => Array.from({ length: totalStages }, (_, index) => index),
-    [totalStages]
+    [totalStages],
   );
 
   // Prepare contracts for batch reading
@@ -118,7 +118,7 @@ const AdminVerifications = () => {
         functionName: "getStage",
         args: [BigInt(index)],
       })),
-    [stageIndexes]
+    [stageIndexes],
   );
 
   // Fetch all stages
@@ -306,7 +306,8 @@ const AdminVerifications = () => {
           onSuccess: () => {
             toast({
               title: "Bank Transfer Verified",
-              description: "The bank transfer has been approved and tokens allocated.",
+              description:
+                "The bank transfer has been approved and tokens allocated.",
             });
             // Reset all states and close dialogs
             resetStates();
@@ -314,12 +315,13 @@ const AdminVerifications = () => {
           onError: (error) => {
             toast({
               title: "Verification Failed",
-              description: "Failed to update bank transfer status. Please try again.",
+              description:
+                "Failed to update bank transfer status. Please try again.",
               variant: "destructive",
             });
             console.error("Verification error:", error);
           },
-        }
+        },
       );
     }
   }, [transactionReceipt]);
@@ -371,7 +373,7 @@ const AdminVerifications = () => {
           });
           console.error("Rejection error:", error);
         },
-      }
+      },
     );
   };
 
@@ -408,7 +410,8 @@ const AdminVerifications = () => {
     limit: 10,
   };
 
-  const isProcessing = isWriting || isWaitingForReceipt || verifyMutation.isPending;
+  const isProcessing =
+    isWriting || isWaitingForReceipt || verifyMutation.isPending;
 
   if (isError) {
     return (
@@ -625,7 +628,7 @@ const AdminVerifications = () => {
                           year: "numeric",
                           hour: "2-digit",
                           minute: "2-digit",
-                        }
+                        },
                       )}
                     </TableCell>
                     <TableCell>
@@ -633,7 +636,7 @@ const AdminVerifications = () => {
                         variant="outline"
                         className={
                           transfer.status === BankTransferStatus.PENDING
-                            ? "border-accent text-accent bg-accent/10"
+                            ? "border-yellow-600 text-yellow-600 bg-yellow-100"
                             : transfer.status === BankTransferStatus.VERIFIED
                               ? "border-success text-success bg-success/10"
                               : "border-destructive text-destructive bg-destructive/10"
@@ -645,7 +648,10 @@ const AdminVerifications = () => {
                     <TableCell>
                       <div className="flex gap-2">
                         <Dialog
-                          open={isReviewDialogOpen && selectedTransaction?.id === transfer.id}
+                          open={
+                            isReviewDialogOpen &&
+                            selectedTransaction?.id === transfer.id
+                          }
                           onOpenChange={(open) => {
                             setIsReviewDialogOpen(open);
                             if (!open) {
@@ -662,7 +668,9 @@ const AdminVerifications = () => {
                                 setSelectedTransaction(transfer);
                                 setIsReviewDialogOpen(true);
                               }}
-                              disabled={transfer.status !== BankTransferStatus.PENDING}
+                              disabled={
+                                transfer.status !== BankTransferStatus.PENDING
+                              }
                             >
                               <Eye className="w-3 h-3 mr-1" />
                               Review
@@ -760,7 +768,9 @@ const AdminVerifications = () => {
                                     className="flex-1 bg-success hover:bg-success/90 text-white"
                                   >
                                     <CheckCircle className="w-4 h-4 mr-2" />
-                                    {isProcessing ? "Processing..." : "Approve & Allocate Tokens"}
+                                    {isProcessing
+                                      ? "Processing..."
+                                      : "Approve & Allocate Tokens"}
                                   </Button>
                                   <Button
                                     onClick={handleReject}
@@ -860,7 +870,6 @@ const AdminVerifications = () => {
                 </p>
               </div>
 
-
               {selectedTransaction && (
                 <div className="bg-muted/50 p-3 rounded-lg space-y-1">
                   <p className="text-xs text-muted-foreground">
@@ -883,9 +892,7 @@ const AdminVerifications = () => {
                 </Button>
                 <Button
                   onClick={handleAllocateTokens}
-                  disabled={
-                    !selectedStageId || !tokenAmount || isProcessing
-                  }
+                  disabled={!selectedStageId || !tokenAmount || isProcessing}
                   className="flex-1 bg-primary hover:bg-primary/90"
                 >
                   {isProcessing ? "Processing..." : "Allocate Tokens"}
