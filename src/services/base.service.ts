@@ -1,6 +1,5 @@
 import axios, { AxiosError, CancelTokenStatic, CancelTokenSource } from "axios";
-const baseURL = "https://microleague-be-staging.vercel.app/api/v1";
-// import.meta.env.VITE_API_URL || "http://localhost:8080";
+const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 // Flag to ensure interceptors are only added once
 let interceptorsInitialized = false;
