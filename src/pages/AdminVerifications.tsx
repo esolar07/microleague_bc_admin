@@ -74,6 +74,19 @@ const AdminVerifications = () => {
   const [transactionHash, setTransactionHash] = useState<
     `0x${string}` | undefined
   >(undefined);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    walletAddress: "",
+    amount: "",
+    senderName: "",
+    bankName: "",
+    transactionRef: "",
+    paymentRef: "",
+    proofUrl: "",
+    notes: "",
+  });
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
 
   const initialFilters = {
     search: "",
@@ -84,6 +97,40 @@ const AdminVerifications = () => {
   };
 
   const [filters, setFilters] = useState(initialFilters);
+
+  // Upload proof file directly to Cloudinary
+  const uploadProofFile = async (file: File): Promise<string> => {
+    const CLOUDINARY_CLOUD_NAME = "dnyafkpqs";
+    const CLOUDINARY_UPLOAD_PRESET = "microleague_bank_transfer"; // You may need to create this in Cloudinary
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("folder", "bank-transfers"); // Organize uploads in a folder
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(
+          (err as any).error?.message || "Failed to upload to Cloudinary",
+        );
+      }
+
+      const result = (await response.json()) as any;
+      return result.secure_url;
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      throw error;
+    }
+  };
 
   // Fetch sale token decimals
   const { data: saleTokenDecimals } = useReadContract({
@@ -386,6 +433,168 @@ const AdminVerifications = () => {
   };
 
   const createMutation = useCreateBankTransfer();
+
+  const handleFormChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileChange = async (file: File | null) => {
+    if (!file) {
+      setProofFile(null);
+      setFormData((prev) => ({ ...prev, proofUrl: "" }));
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please upload an image smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProofFile(file);
+    setIsUploadingProof(true);
+
+    try {
+      const uploadedUrl = await uploadProofFile(file);
+
+      setFormData((prev) => ({ ...prev, proofUrl: uploadedUrl }));
+
+      toast({
+        title: "Success",
+        description: "Proof file uploaded successfully to Cloudinary",
+      });
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to upload proof file",
+        variant: "destructive",
+      });
+      setProofFile(null);
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
+
+  const resetFormData = () => {
+    setFormData({
+      walletAddress: "",
+      amount: "",
+      senderName: "",
+      bankName: "",
+      transactionRef: "",
+      paymentRef: "",
+      proofUrl: "",
+      notes: "",
+    });
+    setProofFile(null);
+  };
+
+  const handleCreateTransfer = () => {
+    // Validation
+    if (
+      !formData.walletAddress ||
+      !formData.amount ||
+      !formData.senderName ||
+      !formData.bankName ||
+      !formData.transactionRef ||
+      !formData.paymentRef
+    ) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate proof file upload
+    if (!formData.proofUrl) {
+      toast({
+        title: "Missing Proof File",
+        description: "Please upload a transaction proof image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate wallet address format
+    if (!formData.walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      toast({
+        title: "Invalid Wallet Address",
+        description: "Please enter a valid Ethereum wallet address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate amount
+    const amount = parseFloat(formData.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Handle file upload - in a real app, you'd upload to Cloudinary
+    const proofUrl = formData.proofUrl || "/uploads/proof.jpg";
+
+    createMutation.mutate(
+      {
+        walletAddress: formData.walletAddress,
+        amount: amount,
+        senderName: formData.senderName,
+        bankName: formData.bankName,
+        transactionRef: formData.transactionRef,
+        paymentRef: formData.paymentRef,
+        submittedDate: new Date().toISOString(),
+        proofUrl: proofUrl,
+        notes: formData.notes,
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Success",
+            description: "Bank transfer created successfully",
+          });
+          resetFormData();
+          setIsCreateDialogOpen(false);
+          refetch();
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description:
+              error instanceof Error
+                ? error.message
+                : "Failed to create bank transfer",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
+
   const handleSubmit = (data: any) => {
     createMutation.mutate({
       walletAddress: "0x742d35f8a9b3c4e1d2f6a8e7c9b5d4a3f2e1d0c9",
@@ -438,7 +647,208 @@ const AdminVerifications = () => {
               Review and verify bank transfer transaction proofs
             </p>
           </div>
-          <Button onClick={handleSubmit}>Create Dummy Transfer</Button>
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
+            <DialogTrigger asChild>
+              <Button>Create Bank Transfer</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">
+                  Create Bank Transfer
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  Fill in the details to create a new bank transfer record
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {/* Wallet Address */}
+                <div className="space-y-2">
+                  <Label htmlFor="walletAddress">
+                    Wallet Address <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="walletAddress"
+                    placeholder="0x..."
+                    value={formData.walletAddress}
+                    onChange={(e) =>
+                      handleFormChange("walletAddress", e.target.value)
+                    }
+                    className="bg-background border-border"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Valid Ethereum wallet address (0x...)
+                  </p>
+                </div>
+
+                {/* Amount and Sender Name */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">
+                      Amount (USD) <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="1000"
+                      value={formData.amount}
+                      onChange={(e) =>
+                        handleFormChange("amount", e.target.value)
+                      }
+                      className="bg-background border-border"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="senderName">
+                      Sender Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="senderName"
+                      placeholder="John Doe"
+                      value={formData.senderName}
+                      onChange={(e) =>
+                        handleFormChange("senderName", e.target.value)
+                      }
+                      className="bg-background border-border"
+                    />
+                  </div>
+                </div>
+
+                {/* Bank Name and Transaction Ref */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bankName">
+                      Bank Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="bankName"
+                      placeholder="Chase Bank"
+                      value={formData.bankName}
+                      onChange={(e) =>
+                        handleFormChange("bankName", e.target.value)
+                      }
+                      className="bg-background border-border"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="transactionRef">
+                      Transaction Ref{" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="transactionRef"
+                      placeholder="CHB1234567898"
+                      value={formData.transactionRef}
+                      onChange={(e) =>
+                        handleFormChange("transactionRef", e.target.value)
+                      }
+                      className="bg-background border-border"
+                    />
+                  </div>
+                </div>
+
+                {/* Payment Ref */}
+                <div className="space-y-2">
+                  <Label htmlFor="paymentRef">
+                    Payment Ref <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="paymentRef"
+                    placeholder="MLC-ABC123XY1Z"
+                    value={formData.paymentRef}
+                    onChange={(e) =>
+                      handleFormChange("paymentRef", e.target.value)
+                    }
+                    className="bg-background border-border"
+                  />
+                </div>
+
+                {/* Proof File Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="proofFile">Transaction Proof (Image)</Label>
+                  <div className="space-y-2">
+                    <Input
+                      id="proofFile"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        handleFileChange(e.target.files?.[0] || null)
+                      }
+                      disabled={isUploadingProof}
+                      className="bg-background border-border"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Accepted formats: JPG, PNG, GIF. Max size: 5MB
+                    </p>
+                    {isUploadingProof && (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin">
+                          <Clock className="w-4 h-4 text-primary" />
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          Uploading file...
+                        </span>
+                      </div>
+                    )}
+                    {proofFile && formData.proofUrl && (
+                      <div className="flex items-center gap-2 p-2 bg-success/10 rounded-lg">
+                        <CheckCircle className="w-4 h-4 text-success" />
+                        <div>
+                          <p className="text-sm font-medium text-success">
+                            {proofFile.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Upload successful
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Add any notes about this transfer..."
+                    value={formData.notes}
+                    onChange={(e) => handleFormChange("notes", e.target.value)}
+                    className="bg-background border-border"
+                    rows={3}
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreateDialogOpen(false);
+                      resetFormData();
+                    }}
+                    disabled={createMutation.isPending || isUploadingProof}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleCreateTransfer}
+                    disabled={createMutation.isPending || isUploadingProof}
+                    className="flex-1 bg-primary hover:bg-primary/90"
+                  >
+                    {createMutation.isPending
+                      ? "Creating..."
+                      : "Create Transfer"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Stats */}
