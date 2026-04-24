@@ -71,6 +71,7 @@ const AdminVerifications = () => {
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const [tokenAmount, setTokenAmount] = useState<string>("");
+  const [tokenAmountManuallyEdited, setTokenAmountManuallyEdited] = useState(false);
   const [transactionHash, setTransactionHash] = useState<
     `0x${string}` | undefined
   >(undefined);
@@ -203,6 +204,17 @@ const AdminVerifications = () => {
       .filter(Boolean);
   }, [stageContracts]);
 
+  // Auto-calculate token amount from transaction dollar amount and selected stage price
+  useEffect(() => {
+    if (tokenAmountManuallyEdited) return;
+    if (!selectedTransaction || !selectedStageId) return;
+    const stage = stages.find((s: any) => s.id.toString() === selectedStageId);
+    if (!stage || stage.price <= 0) return;
+    const dollars = parseFloat(selectedTransaction.amount);
+    if (isNaN(dollars) || dollars <= 0) return;
+    setTokenAmount((dollars / stage.price).toFixed(4));
+  }, [selectedStageId, selectedTransaction, stages, tokenAmountManuallyEdited]);
+
   // Contract write hook
   const { writeContractAsync, isPending: isWriting } = useWriteContract();
 
@@ -263,6 +275,7 @@ const AdminVerifications = () => {
     setIsReviewDialogOpen(false);
     setSelectedStageId("");
     setTokenAmount("");
+    setTokenAmountManuallyEdited(false);
     setTransactionHash(undefined);
     setVerificationNote("");
     setSelectedTransaction(null);
@@ -270,6 +283,7 @@ const AdminVerifications = () => {
 
   // Handle opening allocation dialog
   const handleOpenAllocationDialog = () => {
+    setTokenAmountManuallyEdited(false);
     setIsAllocationDialogOpen(true);
   };
 
@@ -1249,7 +1263,7 @@ const AdminVerifications = () => {
                           <div className="flex items-center justify-between w-full">
                             <span className="font-medium">{stage.name}</span>
                             <span className="ml-3">
-                              {formatNumber(stage.price, 3)} per token
+                              {formatNumber(stage.price, 4)} per token
                             </span>
                           </div>
                         </SelectItem>
@@ -1271,13 +1285,35 @@ const AdminVerifications = () => {
                   min="0"
                   placeholder="Enter token amount..."
                   value={tokenAmount}
-                  onChange={(e) => setTokenAmount(e.target.value)}
+                  onChange={(e) => {
+                    setTokenAmountManuallyEdited(true);
+                    setTokenAmount(e.target.value);
+                  }}
                   className="bg-background border-border"
                   disabled={isProcessing}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Number of tokens to allocate to the buyer's wallet
-                </p>
+                {selectedStageId && selectedTransaction && (() => {
+                  const stage = stages.find((s: any) => s.id.toString() === selectedStageId);
+                  return stage ? (
+                    <p className="text-xs text-muted-foreground">
+                      ${selectedTransaction.amount.toLocaleString()} ÷ ${parseFloat(stage.price.toFixed(6))}/token
+                      {tokenAmountManuallyEdited && (
+                        <button
+                          type="button"
+                          className="ml-2 text-primary underline"
+                          onClick={() => setTokenAmountManuallyEdited(false)}
+                        >
+                          recalculate
+                        </button>
+                      )}
+                    </p>
+                  ) : null;
+                })()}
+                {!selectedStageId && (
+                  <p className="text-xs text-muted-foreground">
+                    Select a stage to auto-calculate tokens from the transfer amount
+                  </p>
+                )}
               </div>
 
               {selectedTransaction && (
