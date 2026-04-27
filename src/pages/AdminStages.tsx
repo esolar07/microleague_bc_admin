@@ -1,5 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { formatUnits, parseUnits } from "viem";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { formatUnits, parseUnits, maxUint256 } from "viem";
 import {
   useAccount,
   useReadContract,
@@ -106,6 +106,29 @@ const initialStageForm: StageFormState = {
   releaseIntervalDays: "",
   whitelistOnly: false,
 };
+
+const erc20Abi = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "allowance",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
 
 const parseAmount = (value: bigint, decimals: number) => {
   const parsed = parseFloat(formatUnits(value, decimals));
@@ -239,6 +262,24 @@ const AdminStages = () => {
   const [pendingAction, setPendingAction] = useState<
     "create" | "update" | null
   >(null);
+  const [approveHash, setApproveHash] = useState<`0x${string}` | undefined>(
+    undefined,
+  );
+  const [stageCreateStep, setStageCreateStep] = useState<
+    "idle" | "approving" | "creating"
+  >("idle");
+  const [pendingStageData, setPendingStageData] = useState<{
+    price: bigint;
+    offeredAmount: bigint;
+    minBuyTokens: bigint;
+    maxBuyTokens: bigint;
+    startTime: bigint;
+    endTime: bigint;
+    cliff: bigint;
+    releaseInterval: bigint;
+    duration: bigint;
+    whitelistOnly: boolean;
+  } | null>(null);
 
   // if (!tokenPresaleAddress) {
   //   return (
@@ -284,6 +325,41 @@ const AdminStages = () => {
     address: tokenPresaleAddress,
     abi: tokenPresaleAbi,
     functionName: "stagesCount",
+  });
+
+  const { data: saleTokenAddress } = useReadContract({
+    address: tokenPresaleAddress,
+    abi: tokenPresaleAbi,
+    functionName: "saleToken",
+  });
+
+  const { data: ownerAddress } = useReadContract({
+    address: tokenPresaleAddress,
+    abi: tokenPresaleAbi,
+    functionName: "owner",
+  });
+
+  const { data: currentAllowance, refetch: refetchAllowance } = useReadContract(
+    {
+      address: saleTokenAddress as `0x${string}` | undefined,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args:
+        ownerAddress && tokenPresaleAddress
+          ? [ownerAddress as `0x${string}`, tokenPresaleAddress]
+          : undefined,
+      query: {
+        enabled: Boolean(
+          saleTokenAddress && ownerAddress && tokenPresaleAddress,
+        ),
+      },
+    },
+  );
+
+  const { data: approveReceipt } = useWaitForTransactionReceipt({
+    hash: approveHash,
+    confirmations: 1,
+    query: { enabled: Boolean(approveHash) },
   });
 
   const decimals = saleTokenDecimals ? Number(saleTokenDecimals) : 18;
@@ -479,6 +555,8 @@ const AdminStages = () => {
     if (!open) {
       resetForm();
       setPendingAction(null);
+      setStageCreateStep("idle");
+      setPendingStageData(null);
     }
   };
 
@@ -491,7 +569,55 @@ const AdminStages = () => {
     }
   };
 
-  const isCreatingStage = isWriting || isWaitingForReceipt;
+  const isCreatingStage = stageCreateStep !== "idle" || isWaitingForReceipt;
+
+  const submitAddStage = useCallback(
+    async (data: NonNullable<typeof pendingStageData>) => {
+      const hash = await writeContractAsync({
+        address: tokenPresaleAddress,
+        abi: tokenPresaleAbi,
+        functionName: "addStage",
+        args: [{ ...data, soldAmount: 0n }],
+        chain: undefined,
+        account: address,
+      });
+      setTransactionHash(hash);
+      setStageCreateStep("creating");
+      setPendingAction("create");
+      toast({
+        title: "Step 2/2: Creating stage…",
+        description: "Waiting for confirmation on-chain.",
+      });
+    },
+    [writeContractAsync, address, toast],
+  );
+
+  useEffect(() => {
+    if (!approveReceipt) return;
+    setApproveHash(undefined);
+    refetchAllowance();
+
+    if (pendingStageData) {
+      const data = pendingStageData;
+      setPendingStageData(null);
+      submitAddStage(data).catch((error) => {
+        toast({
+          title: "Create stage failed",
+          description:
+            error instanceof Error ? error.message : "Failed after approval.",
+          variant: "destructive",
+        });
+        setStageCreateStep("idle");
+        setPendingAction(null);
+      });
+    }
+  }, [
+    approveReceipt,
+    pendingStageData,
+    refetchAllowance,
+    submitAddStage,
+    toast,
+  ]);
 
   useEffect(() => {
     if (!transactionReceipt) {
@@ -514,6 +640,7 @@ const AdminStages = () => {
     setEditingStageId(null);
     setPendingAction(null);
     setTransactionHash(undefined);
+    setStageCreateStep("idle");
 
     void Promise.allSettled([refetchStageCount(), refetchStageContracts()]);
   }, [
@@ -545,6 +672,8 @@ const AdminStages = () => {
 
     setTransactionHash(undefined);
     setPendingAction(null);
+    setStageCreateStep("idle");
+    setPendingStageData(null);
   }, [waitError, toast, pendingAction]);
 
   const handleOpenEditStage = (stage: (typeof stages)[number]) => {
@@ -587,41 +716,45 @@ const AdminStages = () => {
 
     try {
       const normalized = normalizeStageForm(stageForm);
+      const stageData = {
+        ...normalized,
+        whitelistOnly: stageForm.whitelistOnly,
+      };
+      const needsApproval =
+        saleTokenAddress &&
+        (!currentAllowance || currentAllowance < normalized.offeredAmount);
 
-      setPendingAction("create");
-
-      const hash = await writeContractAsync({
-        address: tokenPresaleAddress,
-        abi: tokenPresaleAbi,
-        functionName: "addStage",
-        args: [
-          {
-            ...normalized,
-            soldAmount: 0n,
-            // active: stageForm.active,
-            whitelistOnly: stageForm.whitelistOnly,
-          },
-        ],
-        chain: undefined,
-        account: address,
-      });
-
-      setTransactionHash(hash);
-      toast({
-        title: "Transaction submitted",
-        description: "Waiting for confirmation on-chain…",
-      });
+      if (needsApproval) {
+        setPendingStageData(stageData);
+        setStageCreateStep("approving");
+        const hash = await writeContractAsync({
+          address: saleTokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [tokenPresaleAddress, normalized.offeredAmount],
+          chain: undefined,
+          account: address,
+        });
+        setApproveHash(hash);
+        toast({
+          title: "Step 1/2: Approving tokens…",
+          description: "Approve the presale contract to spend your tokens.",
+        });
+      } else {
+        await submitAddStage(stageData);
+      }
     } catch (error) {
       const description =
         error instanceof Error
           ? error.message
           : "Failed to create the stage. Please try again.";
-
       toast({
         title: "Create stage failed",
         description,
         variant: "destructive",
       });
+      setStageCreateStep("idle");
+      setPendingStageData(null);
       setPendingAction(null);
     }
   };
@@ -737,6 +870,7 @@ const AdminStages = () => {
                 setForm={setStageForm}
                 onSubmit={handleCreateStage}
                 isCreating={isCreatingStage}
+                createStep={stageCreateStep}
                 isConnected={isConnected}
                 onCancel={() => handleDialogChange(false)}
               />

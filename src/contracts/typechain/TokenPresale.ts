@@ -70,6 +70,7 @@ export interface TokenPresaleInterface extends Interface {
     nameOrSignature:
       | "addStage"
       | "adminAddPurchase"
+      | "availableForDistribution"
       | "buyWithETH"
       | "buyWithToken"
       | "buyerPurchased"
@@ -80,7 +81,6 @@ export interface TokenPresaleInterface extends Interface {
       | "claimEnabled"
       | "claimableAmount"
       | "currentStage"
-      | "depositSaleTokens"
       | "emergencyMode"
       | "emergencyWithdraw"
       | "enableEmergencyMode"

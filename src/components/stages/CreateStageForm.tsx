@@ -18,23 +18,30 @@ export type StageFormShape = {
   releaseIntervalDays: any;
 };
 
-type Props = {
+type Props = Readonly<{
   form: StageFormShape;
   setForm: React.Dispatch<React.SetStateAction<StageFormShape>>;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isCreating: boolean;
+  createStep?: "idle" | "approving" | "creating";
   isConnected?: boolean;
   onCancel?: () => void;
-};
+}>;
 
 export default function CreateStageForm({
   form,
   setForm,
   onSubmit,
   isCreating,
+  createStep = "idle",
   isConnected = true,
   onCancel,
 }: Props) {
+  const submitLabel =
+    createStep === "approving" ? "Approving tokens… (1/2)" :
+    createStep === "creating"  ? "Creating stage… (2/2)" :
+    isCreating                 ? "Processing…" :
+    "Create Stage";
   return (
     <form className="space-y-4 py-4" onSubmit={onSubmit}>
       <div className="grid md:grid-cols-2 gap-4 items-start">
@@ -355,7 +362,7 @@ export default function CreateStageForm({
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
             disabled={isCreating}
           >
-            {isCreating ? "Creating…" : "Create Stage"}
+            {submitLabel}
           </Button>
         </div>
       </div>

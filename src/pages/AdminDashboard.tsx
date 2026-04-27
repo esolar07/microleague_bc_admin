@@ -1,5 +1,5 @@
 import { useMemo, useState, FormEvent, useEffect } from "react";
-import { formatUnits, parseUnits } from "viem";
+import { formatUnits, parseUnits, maxUint256 } from "viem";
 import {
   useReadContract,
   useReadContracts,
@@ -12,7 +12,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Play, Pause, Crown, Clock, Percent } from "lucide-react";
+import { Play, Pause, Crown, Percent } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +89,12 @@ const getStageStatus = ({
   }
 };
 
+const erc20Abi = [
+  { name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "", type: "bool" }] },
+  { name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+  { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+] as const;
+
 const AdminDashboard = () => {
   const { address } = useAccount();
   const { status } = useAccount();
@@ -98,13 +104,16 @@ const AdminDashboard = () => {
   const [isCreateStageDialogOpen, setIsCreateStageDialogOpen] = useState(false);
   const [isReferralDialogOpen, setIsReferralDialogOpen] = useState(false);
   const [isPauseDialogOpen, setIsPauseDialogOpen] = useState(false);
-  const [transactionHash, setTransactionHash] = useState<
-    `0x${string}` | undefined
-  >(undefined);
-  const [pauseTransactionHash, setPauseTransactionHash] = useState<
-    `0x${string}` | undefined
-  >(undefined);
-  const [pendingAction, setPendingAction] = useState<"create" | null>(null);
+  const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined);
+  const [pauseTransactionHash, setPauseTransactionHash] = useState<`0x${string}` | undefined>(undefined);
+  const [approveHash, setApproveHash] = useState<`0x${string}` | undefined>(undefined);
+  const [approveAmount, setApproveAmount] = useState("");
+  const [pendingStageData, setPendingStageData] = useState<{
+    price: bigint; offeredAmount: bigint; minBuyTokens: bigint; maxBuyTokens: bigint;
+    startTime: bigint; endTime: bigint; cliff: bigint; releaseInterval: bigint;
+    duration: bigint; whitelistOnly: boolean;
+  } | null>(null);
+  const [stageCreateStep, setStageCreateStep] = useState<"idle" | "approving" | "creating">("idle");
 
   const [stageForm, setStageForm] = useState({
     price: "",
@@ -159,6 +168,49 @@ const AdminDashboard = () => {
 
   const decimals = saleTokenDecimals ? Number(saleTokenDecimals) : 18;
   const totalStages = stagesCount ? Number(stagesCount) : 0;
+
+  const { data: saleTokenAddress } = useReadContract({
+    address: tokenPresaleAddress,
+    abi: tokenPresaleAbi,
+    functionName: "saleToken",
+  });
+
+  const { data: ownerAddress } = useReadContract({
+    address: tokenPresaleAddress,
+    abi: tokenPresaleAbi,
+    functionName: "owner",
+  });
+
+  const { data: availableForDistribution, refetch: refetchAvailable } = useReadContract({
+    address: tokenPresaleAddress,
+    abi: tokenPresaleAbi,
+    functionName: "availableForDistribution",
+  });
+
+  const { data: ownerTokenBalance } = useReadContract({
+    address: saleTokenAddress as `0x${string}` | undefined,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: ownerAddress ? [ownerAddress as `0x${string}`] : undefined,
+    query: { enabled: Boolean(saleTokenAddress && ownerAddress) },
+  });
+
+  const { data: currentAllowance, refetch: refetchAllowance } = useReadContract({
+    address: saleTokenAddress as `0x${string}` | undefined,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: (ownerAddress && tokenPresaleAddress) ? [ownerAddress as `0x${string}`, tokenPresaleAddress] : undefined,
+    query: { enabled: Boolean(saleTokenAddress && ownerAddress && tokenPresaleAddress) },
+  });
+
+  const {
+    data: approveReceipt,
+    isLoading: isWaitingForApprove,
+  } = useWaitForTransactionReceipt({
+    hash: approveHash,
+    confirmations: 1,
+    query: { enabled: Boolean(approveHash) },
+  });
 
   const parseDaysToSeconds = (value: string) => {
     const days = Number(value);
@@ -265,8 +317,24 @@ const AdminDashboard = () => {
     },
   });
 
-  const isCreatingStage = isWriting || isWaitingForReceipt;
+  const isCreatingStage = stageCreateStep !== "idle" || isWaitingForReceipt;
   const isPausingContract = isWriting || isWaitingForPauseReceipt;
+
+  const submitAddStage = async (
+    normalized: NonNullable<typeof pendingStageData>,
+  ) => {
+    const hash = await writeContractAsync({
+      address: tokenPresaleAddress,
+      abi: tokenPresaleAbi,
+      functionName: "addStage",
+      args: [{ ...normalized, soldAmount: 0n }],
+      chain: undefined,
+      account: address,
+    });
+    setTransactionHash(hash);
+    setStageCreateStep("creating");
+    toast({ title: "Step 2/2: Creating stage…", description: "Waiting for confirmation on-chain." });
+  };
 
   const handleCreateStage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -282,41 +350,36 @@ const AdminDashboard = () => {
 
     try {
       const normalized = normalizeStageForm(stageForm);
+      const stageData = { ...normalized, whitelistOnly: stageForm.whitelistOnly };
+      const needsApproval =
+        saleTokenAddress &&
+        (!currentAllowance || currentAllowance < normalized.offeredAmount);
 
-      setPendingAction("create");
-
-      const hash = await writeContractAsync({
-        address: tokenPresaleAddress,
-        abi: tokenPresaleAbi,
-        functionName: "addStage",
-        args: [
-          {
-            ...normalized,
-            soldAmount: 0n,
-            whitelistOnly: stageForm.whitelistOnly,
-          },
-        ],
-        chain: undefined,
-        account: address,
-      });
-
-      setTransactionHash(hash);
-      toast({
-        title: "Transaction submitted",
-        description: "Waiting for confirmation on-chain…",
-      });
+      if (needsApproval) {
+        setPendingStageData(stageData);
+        setStageCreateStep("approving");
+        const hash = await writeContractAsync({
+          address: saleTokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [tokenPresaleAddress, normalized.offeredAmount],
+          chain: undefined,
+          account: address,
+        });
+        setApproveHash(hash);
+        toast({ title: "Step 1/2: Approving tokens…", description: "Approve the presale contract to spend your tokens." });
+      } else {
+        setStageCreateStep("creating");
+        await submitAddStage(stageData);
+      }
     } catch (error) {
       const description =
         error instanceof Error
           ? error.message
           : "Failed to create the stage. Please try again.";
-
-      toast({
-        title: "Create stage failed",
-        description,
-        variant: "destructive",
-      });
-      setPendingAction(null);
+      toast({ title: "Create stage failed", description, variant: "destructive" });
+      setStageCreateStep("idle");
+      setPendingStageData(null);
     }
   };
 
@@ -395,6 +458,60 @@ const AdminDashboard = () => {
       });
     }
   };
+
+  const handleApproveTokens = async () => {
+    if (!isConnected || !saleTokenAddress || !tokenPresaleAddress) return;
+
+    try {
+      const amount = approveAmount.trim()
+        ? parseUnits(approveAmount, decimals)
+        : maxUint256;
+
+      const hash = await writeContractAsync({
+        address: saleTokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [tokenPresaleAddress, amount],
+        chain: undefined,
+        account: address,
+      });
+
+      setApproveHash(hash);
+      toast({ title: "Approval submitted", description: "Waiting for confirmation..." });
+    } catch (error) {
+      toast({
+        title: "Approval failed",
+        description: error instanceof Error ? error.message : "Failed to approve tokens.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!approveReceipt) return;
+    setApproveHash(undefined);
+    refetchAllowance();
+    refetchAvailable();
+
+    if (pendingStageData) {
+      // Approval was part of stage creation — proceed to create the stage
+      const data = pendingStageData;
+      setPendingStageData(null);
+      submitAddStage(data).catch((error) => {
+        toast({
+          title: "Create stage failed",
+          description: error instanceof Error ? error.message : "Failed after approval.",
+          variant: "destructive",
+        });
+        setStageCreateStep("idle");
+      });
+    } else {
+      // Standalone approval from the Approve Tokens card
+      toast({ title: "Tokens approved", description: "The presale contract can now distribute your tokens." });
+      setApproveAmount("");
+      setStageCreateStep("idle");
+    }
+  }, [approveReceipt]);
 
   const stageIndexes = useMemo(
     () => Array.from({ length: totalStages }, (_, index) => index),
@@ -514,8 +631,10 @@ const AdminDashboard = () => {
       releaseIntervalDays: "",
     });
     setIsCreateStageDialogOpen(false);
-    setPendingAction(null);
     setTransactionHash(undefined);
+    setStageCreateStep("idle");
+    refetchAllowance();
+    refetchAvailable();
   }, [transactionReceipt, toast]);
 
   useEffect(() => {
@@ -535,7 +654,8 @@ const AdminDashboard = () => {
     });
 
     setTransactionHash(undefined);
-    setPendingAction(null);
+    setStageCreateStep("idle");
+    setPendingStageData(null);
   }, [waitError, toast]);
 
   useEffect(() => {
@@ -920,6 +1040,7 @@ const AdminDashboard = () => {
                       setForm={setStageForm}
                       onSubmit={handleCreateStage}
                       isCreating={isCreatingStage}
+                      createStep={stageCreateStep}
                       isConnected={isConnected}
                       onCancel={() => setIsCreateStageDialogOpen(false)}
                     />
@@ -1100,6 +1221,64 @@ const AdminDashboard = () => {
                   </DialogContent>
                 </Dialog>
               </div>
+            </Card>
+
+            {/* Approve Tokens for Distribution */}
+            <Card className="cardShadow bg-white p-5 rounded-[20px] w-full border-none mt-6">
+              <h3 className="text-xl font-semibold text-foreground mb-1">Approve Tokens</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Approve the presale contract to distribute tokens from your wallet. Tokens stay in your wallet until claimed.
+              </p>
+
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between text-sm p-3 rounded-lg bg-muted/50 border border-border">
+                  <span className="text-muted-foreground">Your Balance</span>
+                  <span className="font-semibold text-foreground">
+                    {ownerTokenBalance !== undefined
+                      ? `${tokenFormatter.format(parseAmount(ownerTokenBalance as bigint, decimals))} MLC`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm p-3 rounded-lg bg-muted/50 border border-border">
+                  <span className="text-muted-foreground">Current Allowance</span>
+                  <span className={`font-semibold ${currentAllowance && currentAllowance > 0n ? "text-success" : "text-muted-foreground"}`}>
+                    {currentAllowance !== undefined
+                      ? currentAllowance === maxUint256
+                        ? "Unlimited"
+                        : `${tokenFormatter.format(parseAmount(currentAllowance as bigint, decimals))} MLC`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <span className="text-muted-foreground">Available for Distribution</span>
+                  <span className="font-semibold text-primary">
+                    {availableForDistribution !== undefined
+                      ? `${tokenFormatter.format(parseAmount(availableForDistribution as bigint, decimals))} MLC`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="Amount (leave empty for unlimited)"
+                  value={approveAmount}
+                  onChange={(e) => setApproveAmount(e.target.value)}
+                  className="bg-background border-border"
+                  disabled={!isConnected || !saleTokenAddress || isWaitingForApprove}
+                />
+                <Button
+                  onClick={handleApproveTokens}
+                  disabled={!isConnected || !saleTokenAddress || isWaitingForApprove}
+                  className="whitespace-nowrap bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  {isWaitingForApprove ? "Approving..." : "Approve"}
+                </Button>
+              </div>
+              {!saleTokenAddress && (
+                <p className="text-xs text-muted-foreground mt-2">Set the sale token on-chain first to enable approval.</p>
+              )}
             </Card>
           </div>
         </div>
