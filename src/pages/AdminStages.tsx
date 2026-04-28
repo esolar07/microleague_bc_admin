@@ -1,7 +1,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { formatUnits, parseUnits, maxUint256 } from "viem";
+import { formatUnits, parseUnits, maxUint256, ContractFunctionRevertedError, ContractFunctionExecutionError } from "viem";
 import {
   useAccount,
+  usePublicClient,
   useReadContract,
   useReadContracts,
   useWaitForTransactionReceipt,
@@ -10,9 +11,6 @@ import {
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -247,10 +245,23 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
   );
 };
 
+const getContractError = (error: unknown): string => {
+  if (error instanceof ContractFunctionExecutionError) {
+    const cause = error.cause;
+    if (cause instanceof ContractFunctionRevertedError) {
+      return cause.data?.errorName ?? cause.shortMessage ?? error.shortMessage;
+    }
+    return error.shortMessage;
+  }
+  if (error instanceof Error) return error.message;
+  return "Unknown error occurred.";
+};
+
 const AdminStages = () => {
   const { address } = useAccount();
   const { toast } = useToast();
   const { status } = useAccount();
+  const publicClient = usePublicClient();
   const isConnected = status === "connected";
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -373,13 +384,13 @@ const AdminStages = () => {
     return BigInt(Math.floor(days)) * 86_400n;
   };
 
-  const parseMinutesToSeconds = (value: string) => {
-    const minutes = Number(value);
-    if (!Number.isFinite(minutes) || minutes < 0) {
+  const parseReleaseIntervalToSeconds = (value: string) => {
+    const days = Number(value);
+    if (!Number.isFinite(days) || days < 0) {
       throw new Error("Release interval must be a non-negative number.");
     }
 
-    return BigInt(Math.floor(minutes)) * 60n;
+    return BigInt(Math.floor(days)) * 86_400n;
   };
   const normalizeStageForm = (form: StageFormState) => {
     const requiredFields: Array<[keyof StageFormState, string]> = [
@@ -425,7 +436,7 @@ const AdminStages = () => {
       : 0n;
 
     const releaseInterval = form.releaseIntervalDays
-      ? parseMinutesToSeconds(form.releaseIntervalDays)
+      ? parseReleaseIntervalToSeconds(form.releaseIntervalDays)
       : 0n;
 
     return {
@@ -552,6 +563,11 @@ const AdminStages = () => {
 
   const handleDialogChange = (open: boolean) => {
     setIsDialogOpen(open);
+    if (open && stages.length > 0) {
+      const lastStage = stages[stages.length - 1];
+      const prevEnd = formatDateTimeLocal(lastStage.raw.endTime);
+      setStageForm((prev) => ({ ...prev, startDate: prevEnd }));
+    }
     if (!open) {
       resetForm();
       setPendingAction(null);
@@ -573,6 +589,14 @@ const AdminStages = () => {
 
   const submitAddStage = useCallback(
     async (data: NonNullable<typeof pendingStageData>) => {
+      await publicClient?.simulateContract({
+        address: tokenPresaleAddress,
+        abi: tokenPresaleAbi,
+        functionName: "addStage",
+        args: [{ ...data, soldAmount: 0n }],
+        account: address,
+      });
+
       const hash = await writeContractAsync({
         address: tokenPresaleAddress,
         abi: tokenPresaleAbi,
@@ -589,7 +613,7 @@ const AdminStages = () => {
         description: "Waiting for confirmation on-chain.",
       });
     },
-    [writeContractAsync, address, toast],
+    [writeContractAsync, address, toast, publicClient],
   );
 
   useEffect(() => {
@@ -603,8 +627,7 @@ const AdminStages = () => {
       submitAddStage(data).catch((error) => {
         toast({
           title: "Create stage failed",
-          description:
-            error instanceof Error ? error.message : "Failed after approval.",
+          description: getContractError(error),
           variant: "destructive",
         });
         setStageCreateStep("idle");
@@ -695,7 +718,7 @@ const AdminStages = () => {
       releaseIntervalDays:
         raw.releaseInterval === 0n
           ? ""
-          : (Number(raw.releaseInterval) / 60).toString(),
+          : (Number(raw.releaseInterval) / 86_400).toString(),
     });
 
     setEditingStageId(stage.id);
@@ -744,13 +767,9 @@ const AdminStages = () => {
         await submitAddStage(stageData);
       }
     } catch (error) {
-      const description =
-        error instanceof Error
-          ? error.message
-          : "Failed to create the stage. Please try again.";
       toast({
         title: "Create stage failed",
-        description,
+        description: getContractError(error),
         variant: "destructive",
       });
       setStageCreateStep("idle");
@@ -793,6 +812,22 @@ const AdminStages = () => {
 
     try {
       const normalized = normalizeStageForm(stageForm);
+      const stageArgs = [
+        BigInt(editingStageId),
+        {
+          ...normalized,
+          soldAmount: stageToEdit.raw.soldAmount,
+          whitelistOnly: stageForm.whitelistOnly,
+        },
+      ] as const;
+
+      await publicClient?.simulateContract({
+        address: tokenPresaleAddress,
+        abi: tokenPresaleAbi,
+        functionName: "updateStage",
+        args: stageArgs,
+        account: address,
+      });
 
       setPendingAction("update");
 
@@ -800,15 +835,7 @@ const AdminStages = () => {
         address: tokenPresaleAddress,
         abi: tokenPresaleAbi,
         functionName: "updateStage",
-        args: [
-          BigInt(editingStageId),
-          {
-            ...normalized,
-            soldAmount: stageToEdit.raw.soldAmount,
-            // active: stageForm.active,
-            whitelistOnly: stageForm.whitelistOnly,
-          },
-        ],
+        args: stageArgs,
         account: address,
         chain: undefined,
       });
@@ -819,14 +846,9 @@ const AdminStages = () => {
         description: "Waiting for confirmation on-chain…",
       });
     } catch (error) {
-      const description =
-        error instanceof Error
-          ? error.message
-          : "Failed to update the stage. Please try again.";
-
       toast({
         title: "Update stage failed",
-        description,
+        description: getContractError(error),
         variant: "destructive",
       });
       setPendingAction(null);
@@ -873,6 +895,11 @@ const AdminStages = () => {
                 createStep={stageCreateStep}
                 isConnected={isConnected}
                 onCancel={() => handleDialogChange(false)}
+                prevStageEndDate={
+                  stages.length > 0
+                    ? formatDateTimeLocal(stages[stages.length - 1].raw.endTime)
+                    : undefined
+                }
               />
             </DialogContent>
           </Dialog>
@@ -888,297 +915,15 @@ const AdminStages = () => {
                   written directly to the TokenPresale contract.
                 </DialogDescription>
               </DialogHeader>
-              <form className="space-y-4 py-4" onSubmit={handleUpdateStage}>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="price-edit">Token Price (USD)</Label>
-                    <Input
-                      id="price-edit"
-                      type="number"
-                      step="0.000000000000000001"
-                      min="0"
-                      required
-                      value={stageForm.price}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          price: event.target.value,
-                        }))
-                      }
-                      className="bg-background border-border"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Stored as a fixed 18-decimal USD price per token.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="offeredTokens-edit">Tokens Offered</Label>
-                    <Input
-                      id="offeredTokens-edit"
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      required
-                      value={stageForm.offeredTokens}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          offeredTokens: event.target.value,
-                        }))
-                      }
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="minBuyTokens-edit">
-                      Minimum Purchase (tokens)
-                    </Label>
-                    <Input
-                      id="minBuyTokens-edit"
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      required
-                      value={stageForm.minBuyTokens}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          minBuyTokens: event.target.value,
-                        }))
-                      }
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="maxBuyTokens-edit">
-                      Maximum Purchase (tokens)
-                    </Label>
-                    <Input
-                      id="maxBuyTokens-edit"
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      required
-                      value={stageForm.maxBuyTokens}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          maxBuyTokens: event.target.value,
-                        }))
-                      }
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-
-                {/* <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="softCapTokens-edit">
-                      Soft Cap (tokens)
-                    </Label>
-                    <Input
-                      id="softCapTokens-edit"
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      value={stageForm.softCapTokens}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          softCapTokens: event.target.value,
-                        }))
-                      }
-                      placeholder="Defaults to 50% of offered tokens"
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="hardCapTokens-edit">
-                      Hard Cap (tokens)
-                    </Label>
-                    <Input
-                      id="hardCapTokens-edit"
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      value={stageForm.hardCapTokens}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          hardCapTokens: event.target.value,
-                        }))
-                      }
-                      placeholder="Defaults to tokens offered"
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div> */}
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="startDate-edit">Start Time</Label>
-                    <Input
-                      id="startDate-edit"
-                      type="datetime-local"
-                      required
-                      value={stageForm.startDate}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          startDate: event.target.value,
-                        }))
-                      }
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="endDate-edit">End Time</Label>
-                    <Input
-                      id="endDate-edit"
-                      type="datetime-local"
-                      required
-                      value={stageForm.endDate}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          endDate: event.target.value,
-                        }))
-                      }
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cliffDays-edit">Cliff (days)</Label>
-                    <Input
-                      id="cliffDays-edit"
-                      type="number"
-                      min="0"
-                      value={stageForm.cliffDays}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          cliffDays: event.target.value,
-                        }))
-                      }
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="durationDays-edit">
-                      Vesting Duration (days)
-                    </Label>
-                    <Input
-                      id="durationDays-edit"
-                      type="number"
-                      min="0"
-                      value={stageForm.durationDays}
-                      onChange={(event) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          durationDays: event.target.value,
-                        }))
-                      }
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-
-                {/* <div className="space-y-2">
-                  <Label htmlFor="releaseIntervalDays-edit">
-                    Release Interval (days)
-                  </Label>
-                  <Input
-                    id="releaseIntervalDays-edit"
-                    type="number"
-                    min="0"
-                    value={stageForm.releaseIntervalDays}
-                    onChange={(event) =>
-                      setStageForm((prev) => ({
-                        ...prev,
-                        releaseIntervalDays: event.target.value,
-                      }))
-                    }
-                    placeholder="0 for instant release"
-                    className="bg-background border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Interval in days between token releases during vesting
-                  </p>
-                </div> */}
-
-                <div className="space-y-2">
-                  <Label htmlFor="releaseIntervalDays-edit">
-                    Release Interval (minutes)
-                  </Label>
-                  <Input
-                    id="releaseIntervalDays-edit"
-                    type="number"
-                    min="0"
-                    value={stageForm.releaseIntervalDays}
-                    onChange={(event) =>
-                      setStageForm((prev) => ({
-                        ...prev,
-                        releaseIntervalDays: event.target.value,
-                      }))
-                    }
-                    placeholder="0 for instant release"
-                    className="bg-background border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Interval in minutes between token releases during vesting
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6 pt-2">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <p className="font-medium text-foreground">
-                        Whitelist required
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Restrict purchases to whitelisted accounts
-                      </p>
-                    </div>
-                    <Switch
-                      checked={stageForm.whitelistOnly}
-                      onCheckedChange={(checked) =>
-                        setStageForm((prev) => ({
-                          ...prev,
-                          whitelistOnly: checked,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-4">
-                  <div />
-                  <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-border hover:border-primary/50"
-                      onClick={() => handleEditDialogChange(false)}
-                      disabled={isCreatingStage}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                      disabled={isCreatingStage}
-                    >
-                      {isCreatingStage ? "Updating…" : "Update Stage"}
-                    </Button>
-                  </div>
-                </div>
-              </form>
+              <CreateStageForm
+                form={stageForm}
+                setForm={setStageForm}
+                onSubmit={handleUpdateStage}
+                isCreating={isCreatingStage}
+                isConnected={isConnected}
+                onCancel={() => handleEditDialogChange(false)}
+                submitLabel={isCreatingStage ? "Updating…" : "Update Stage"}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -1237,6 +982,14 @@ const AdminStages = () => {
                         className="flex-1 border-border hover:border-primary/50"
                         onClick={() => handleOpenEditStage(stage)}
                         type="button"
+                        disabled={stage.status === "Completed" || stage.status === "Active"}
+                        title={
+                          stage.status === "Completed"
+                            ? "Completed stages cannot be edited"
+                            : stage.status === "Active"
+                              ? "Active stages cannot be edited"
+                              : undefined
+                        }
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         Edit

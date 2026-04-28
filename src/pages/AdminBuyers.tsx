@@ -243,8 +243,8 @@ const AdminBuyers = () => {
               <p className="text-2xl font-semibold text-primary">
                 {stats.totalBuyers}
               </p>
-              <p className="text-sm text-success mt-1">
-                Active: {stats.activeBuyers}
+              <p className="text-sm text-muted-foreground mt-1">
+                Total registered buyers
               </p>
             </div>
             <DollarIcon />
@@ -253,16 +253,13 @@ const AdminBuyers = () => {
           <Card className="cardShadow bg-white p-5 rounded-[20px] hover:border-primary/30 transition-all flex items-center justify-between gap-1">
             <div>
               <p className="text-sm text-muted-foreground mb-1">
-                Active Buyers
+                Unclaimed Tokens
               </p>
               <p className="text-3xl font-bold text-primary">
-                {stats.activeBuyers}
+                {formatNumber(stats.totalUnclaimed)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {stats.totalBuyers > 0
-                  ? Math.round((stats.activeBuyers / stats.totalBuyers) * 100)
-                  : 0}
-                % of total
+                Claimed: {formatNumber(stats.totalClaimed)}
               </p>
             </div>
             <UserIcon />
@@ -364,10 +361,6 @@ const AdminBuyers = () => {
                 <TableHead className="text-muted-foreground">
                   Referrals
                 </TableHead>
-                <TableHead className="text-muted-foreground">
-                  Reputation
-                </TableHead>
-                <TableHead className="text-muted-foreground">Status</TableHead>
                 <TableHead className="text-muted-foreground">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -403,57 +396,23 @@ const AdminBuyers = () => {
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell className="font-semibold text-foreground">
+                    <TableCell className="text-foreground">
                       {formatterNumber(buyer.tokensPurchased)}
                     </TableCell>
-                    <TableCell className="font-semibold text-success">
+                    <TableCell className="text-success">
                       {formatNumber(buyer.amountSpent)}
                     </TableCell>
-                    <TableCell className="text-success">
+                    <TableCell className="text-foreground ">
                       {formatterNumber(buyer.claimed)}
                     </TableCell>
-                    <TableCell className="text-accent">
+                    <TableCell className="text-foreground">
                       {formatterNumber(buyer.unclaimed)}
                     </TableCell>
-                    <TableCell className="font-semibold text-foreground">
-                      {buyer.referrals}
+                    <TableCell className="text-foreground">
+                      {buyer.referrals||0}
                     </TableCell>
-                    <TableCell>
-                      {buyer.reputationScore !== undefined ? (
-                        <div className="flex flex-col gap-0.5">
-                          <Badge
-                            variant="outline"
-                            className={
-                              buyer.reputationTier === "Excellent"
-                                ? "border-green-500 text-green-600 bg-green-50"
-                                : buyer.reputationTier === "Good"
-                                  ? "border-blue-500 text-blue-600 bg-blue-50"
-                                  : buyer.reputationTier === "Fair"
-                                    ? "border-amber-500 text-amber-600 bg-amber-50"
-                                    : buyer.reputationTier === "Poor"
-                                      ? "border-orange-500 text-orange-600 bg-orange-50"
-                                      : "border-red-500 text-red-600 bg-red-50"
-                            }
-                          >
-                            {buyer.reputationTier} · {buyer.reputationScore}
-                          </Badge>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          buyer.status === BuyerStatus.ACTIVE
-                            ? "border-success text-success bg-success/10"
-                            : "border-muted-foreground text-muted-foreground"
-                        }
-                      >
-                        {buyer.status}
-                      </Badge>
-                    </TableCell>
+                  
+                   
                     <TableCell>
                       <Dialog>
                         <DialogTrigger asChild>

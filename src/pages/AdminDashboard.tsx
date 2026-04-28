@@ -1,9 +1,11 @@
 import { useMemo, useState, FormEvent, useEffect } from "react";
-import { formatUnits, parseUnits, maxUint256 } from "viem";
+import { useQueryClient } from "@tanstack/react-query";
+import { formatUnits, parseUnits, maxUint256, ContractFunctionRevertedError, ContractFunctionExecutionError } from "viem";
 import {
   useReadContract,
   useReadContracts,
   useAccount,
+  usePublicClient,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
@@ -142,7 +144,10 @@ const AdminDashboard = () => {
     isError: isTopBuyersError,
   } = useTopBuyers({ limit: 5 });
 
-  const topBuyers = topBuyersResponse?.data?.data?.data || [];
+  const topBuyers = useMemo(() => topBuyersResponse?.data?.data?.data ?? [], [topBuyersResponse]);
+
+  const publicClient = usePublicClient();
+  const queryClient = useQueryClient();
 
   const { data: saleTokenDecimals } = useReadContract({
     address: tokenPresaleAddress,
@@ -395,6 +400,8 @@ const AdminDashboard = () => {
         await submitAddStage(stageData);
       }
     } catch (error) {
+        console.log(error);
+
       const description =
         error instanceof Error
           ? error.message
@@ -520,6 +527,8 @@ const AdminDashboard = () => {
       const data = pendingStageData;
       setPendingStageData(null);
       submitAddStage(data).catch((error) => {
+        console.log(error.message,'errorerror');
+        
         toast({
           title: "Create stage failed",
           description: error instanceof Error ? error.message : "Failed after approval.",
@@ -548,6 +557,15 @@ const AdminDashboard = () => {
     try {
       setIsTogglingClaim(true);
       setPendingClaimState(enabled);
+
+      await publicClient?.simulateContract({
+        address: tokenPresaleAddress,
+        abi: tokenPresaleAbi,
+        functionName: "setClaimEnabled",
+        args: [enabled],
+        account: address,
+      });
+
       const hash = await writeContractAsync({
         address: tokenPresaleAddress,
         abi: tokenPresaleAbi,
@@ -564,9 +582,17 @@ const AdminDashboard = () => {
     } catch (error) {
       setIsTogglingClaim(false);
       setPendingClaimState(null);
+      const description =
+        error instanceof ContractFunctionExecutionError
+          ? (error.cause instanceof ContractFunctionRevertedError
+              ? (error.cause.data?.errorName ?? error.shortMessage)
+              : error.shortMessage)
+          : error instanceof Error
+            ? error.message
+            : "Failed to update claim settings.";
       toast({
         title: "Transaction failed",
-        description: error instanceof Error ? error.message : "Failed to update claim settings.",
+        description,
         variant: "destructive",
       });
     }
@@ -576,7 +602,7 @@ const AdminDashboard = () => {
     if (!claimTxReceipt) return;
     setClaimTxHash(undefined);
     setIsTogglingClaim(false);
-    refetchClaimEnabled();
+    queryClient.invalidateQueries({ queryKey: ["readContract"] });
     toast({
       title: pendingClaimState ? "Claims enabled" : "Claims disabled",
       description: pendingClaimState
@@ -584,7 +610,7 @@ const AdminDashboard = () => {
         : "Users can no longer claim their tokens.",
     });
     setPendingClaimState(null);
-  }, [claimTxReceipt, pendingClaimState, refetchClaimEnabled, toast]);
+  }, [claimTxReceipt, pendingClaimState, queryClient, toast]);
 
   useEffect(() => {
     if (!claimTxError) return;

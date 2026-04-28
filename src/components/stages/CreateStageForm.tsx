@@ -2,8 +2,8 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { InfoIcon } from "../icons";
+import { Loader2 } from "lucide-react";
 
 export type StageFormShape = {
   price: string;
@@ -26,6 +26,8 @@ type Props = Readonly<{
   createStep?: "idle" | "approving" | "creating";
   isConnected?: boolean;
   onCancel?: () => void;
+  prevStageEndDate?: string;
+  submitLabel?: string;
 }>;
 
 export default function CreateStageForm({
@@ -36,14 +38,23 @@ export default function CreateStageForm({
   createStep = "idle",
   isConnected = true,
   onCancel,
+  prevStageEndDate,
+  submitLabel: submitLabelProp,
 }: Props) {
   const submitLabel =
     createStep === "approving" ? "Approving tokens… (1/2)" :
     createStep === "creating"  ? "Creating stage… (2/2)" :
     isCreating                 ? "Processing…" :
-    "Create Stage";
+    submitLabelProp            ?? "Create Stage";
   return (
     <form className="space-y-4 py-4" onSubmit={onSubmit}>
+      {isCreating && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
+          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+          <span>{submitLabel}</span>
+        </div>
+      )}
+      <fieldset disabled={isCreating} className="space-y-4 disabled:opacity-60 disabled:pointer-events-none">
       <div className="grid md:grid-cols-2 gap-4 items-start">
         <div className="space-y-2">
           <div className="flex items-center gap-x-1">
@@ -229,7 +240,14 @@ export default function CreateStageForm({
               setForm((prev) => ({ ...prev, startDate: event.target.value }))
             }
             className="bg-background border-border"
+            // readOnly={!!prevStageEndDate}
+            // disabled={!!prevStageEndDate}
           />
+          {prevStageEndDate && (
+            <p className="text-xs text-muted-foreground">
+              Locked to the previous stage's end time to ensure seamless activation.
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <div className="flex items-center gap-x-1">
@@ -302,7 +320,7 @@ export default function CreateStageForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="releaseIntervalDays">
-            Release Interval (minutes)
+            Release Interval (days)
           </Label>
           <Input
             id="releaseIntervalDays"
@@ -319,12 +337,12 @@ export default function CreateStageForm({
             className="bg-background border-border"
           />
           <p className="text-xs text-muted-foreground">
-            Interval in minutes between token releases during vesting
+            Interval in days between token releases during vesting
           </p>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 pt-2">
+      {/* <div className="grid md:grid-cols-2 gap-6 pt-2">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <p className="font-medium text-foreground">Whitelist required</p>
@@ -339,7 +357,8 @@ export default function CreateStageForm({
             }
           />
         </div>
-      </div>
+      </div> */}
+      </fieldset>
 
       <div className="flex justify-between items-center pt-4">
         {!isConnected && (

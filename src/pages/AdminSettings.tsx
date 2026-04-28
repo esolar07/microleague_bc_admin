@@ -162,7 +162,7 @@ const AdminSettings = () => {
             </h3>
           </div>
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="font-medium text-foreground">Whitelist Mode</p>
                 <p className="text-sm text-muted-foreground">
@@ -181,7 +181,7 @@ const AdminSettings = () => {
               </div>
               <Switch />
             </div>
-            <Separator className="bg-border" />
+            <Separator className="bg-border" /> */}
             <div className="space-y-3">
               <p className="font-medium text-foreground">Admin Wallet</p>
               <div className="p-4 rounded-lg bg-muted/50 border border-border">
