@@ -527,9 +527,7 @@ const AdminVerifications = () => {
       !formData.walletAddress ||
       !formData.amount ||
       !formData.senderName ||
-      !formData.bankName ||
-      !formData.transactionRef ||
-      !formData.paymentRef
+      !formData.bankName 
     ) {
       toast({
         title: "Missing Information",
@@ -540,14 +538,14 @@ const AdminVerifications = () => {
     }
 
     // Validate proof file upload
-    if (!formData.proofUrl) {
-      toast({
-        title: "Missing Proof File",
-        description: "Please upload a transaction proof image",
-        variant: "destructive",
-      });
-      return;
-    }
+    // if (!formData.proofUrl) {
+    //   toast({
+    //     title: "Missing Proof File",
+    //     description: "Please upload a transaction proof image",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
 
     // Validate wallet address format
     if (!formData.walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
@@ -751,7 +749,7 @@ const AdminVerifications = () => {
                   <div className="space-y-2">
                     <Label htmlFor="transactionRef">
                       Transaction Ref{" "}
-                      <span className="text-destructive">*</span>
+                      {/* <span className="text-destructive">*</span> */}
                     </Label>
                     <Input
                       id="transactionRef"
@@ -768,7 +766,8 @@ const AdminVerifications = () => {
                 {/* Payment Ref */}
                 <div className="space-y-2">
                   <Label htmlFor="paymentRef">
-                    Payment Ref <span className="text-destructive">*</span>
+                    Payment Ref
+                     {/* <span className="text-destructive">*</span> */}
                   </Label>
                   <Input
                     id="paymentRef"
