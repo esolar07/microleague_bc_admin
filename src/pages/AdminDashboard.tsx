@@ -187,6 +187,18 @@ const AdminDashboard = () => {
     functionName: "availableForDistribution",
   });
 
+  const { data: claimEnabledOnChain, refetch: refetchClaimEnabled } = useReadContract({
+    address: tokenPresaleAddress,
+    abi: tokenPresaleAbi,
+    functionName: "claimEnabled",
+  });
+
+  const claimEnabled = claimEnabledOnChain ?? false;
+
+  const [claimTxHash, setClaimTxHash] = useState<`0x${string}` | undefined>(undefined);
+  const [isTogglingClaim, setIsTogglingClaim] = useState(false);
+  const [pendingClaimState, setPendingClaimState] = useState<boolean | null>(null);
+
   const { data: ownerTokenBalance } = useReadContract({
     address: saleTokenAddress as `0x${string}` | undefined,
     abi: erc20Abi,
@@ -210,6 +222,16 @@ const AdminDashboard = () => {
     hash: approveHash,
     confirmations: 1,
     query: { enabled: Boolean(approveHash) },
+  });
+
+  const {
+    data: claimTxReceipt,
+    error: claimTxError,
+    isLoading: isWaitingForClaimTx,
+  } = useWaitForTransactionReceipt({
+    hash: claimTxHash,
+    confirmations: 1,
+    query: { enabled: Boolean(claimTxHash) },
   });
 
   const parseDaysToSeconds = (value: string) => {
@@ -512,6 +534,69 @@ const AdminDashboard = () => {
       setStageCreateStep("idle");
     }
   }, [approveReceipt]);
+
+  const handleSetClaimEnabled = async (enabled: boolean) => {
+    if (!isConnected) {
+      toast({
+        title: "Wallet disconnected",
+        description: "Connect an admin wallet to change claim settings.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsTogglingClaim(true);
+      setPendingClaimState(enabled);
+      const hash = await writeContractAsync({
+        address: tokenPresaleAddress,
+        abi: tokenPresaleAbi,
+        functionName: "setClaimEnabled",
+        args: [enabled],
+        chain: undefined,
+        account: address,
+      });
+      setClaimTxHash(hash);
+      toast({
+        title: "Transaction submitted",
+        description: `${enabled ? "Enabling" : "Disabling"} token claims...`,
+      });
+    } catch (error) {
+      setIsTogglingClaim(false);
+      setPendingClaimState(null);
+      toast({
+        title: "Transaction failed",
+        description: error instanceof Error ? error.message : "Failed to update claim settings.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!claimTxReceipt) return;
+    setClaimTxHash(undefined);
+    setIsTogglingClaim(false);
+    refetchClaimEnabled();
+    toast({
+      title: pendingClaimState ? "Claims enabled" : "Claims disabled",
+      description: pendingClaimState
+        ? "Users can now claim their purchased tokens."
+        : "Users can no longer claim their tokens.",
+    });
+    setPendingClaimState(null);
+  }, [claimTxReceipt, pendingClaimState, refetchClaimEnabled, toast]);
+
+  useEffect(() => {
+    if (!claimTxError) return;
+    setClaimTxHash(undefined);
+    setIsTogglingClaim(false);
+    setPendingClaimState(null);
+    toast({
+      title: "Transaction failed",
+      description: claimTxError instanceof Error ? claimTxError.message : "Failed to update claim settings.",
+      variant: "destructive",
+    });
+  }, [claimTxError, toast]);
 
   const stageIndexes = useMemo(
     () => Array.from({ length: totalStages }, (_, index) => index),
@@ -1221,6 +1306,44 @@ const AdminDashboard = () => {
                   </DialogContent>
                 </Dialog>
               </div>
+            </Card>
+
+            {/* Claim Settings */}
+            <Card className="cardShadow bg-white p-5 rounded-[20px] w-full border-none mt-6">
+              <h3 className="text-xl font-semibold text-foreground mb-1">Claim Settings</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Control whether users can claim their purchased tokens from the contract.
+              </p>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border mb-3">
+                <div className="space-y-0.5">
+                  <p className="font-medium text-foreground">Token Claims</p>
+                  <p className="text-sm text-muted-foreground">
+                    {claimEnabled ? "Currently enabled" : "Currently disabled"}
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={claimEnabled ? "border-success text-success bg-success/10" : "border-muted-foreground text-muted-foreground bg-muted/30"}
+                >
+                  {claimEnabled ? "Enabled" : "Disabled"}
+                </Badge>
+              </div>
+              <Button
+                className={`w-full rounded-full py-3 font-medium ${
+                  claimEnabled
+                    ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    : "text-white bg-gradient-to-r from-primary to-[#8b5cf6] shadow-sm"
+                }`}
+                variant={claimEnabled ? "outline" : "default"}
+                onClick={() => handleSetClaimEnabled(!claimEnabled)}
+                disabled={!isConnected || isTogglingClaim || isWaitingForClaimTx}
+              >
+                {isTogglingClaim || isWaitingForClaimTx
+                  ? "Confirming..."
+                  : claimEnabled
+                    ? "DISABLE CLAIMS"
+                    : "ENABLE CLAIMS"}
+              </Button>
             </Card>
 
             {/* Approve Tokens for Distribution */}
