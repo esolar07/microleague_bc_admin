@@ -1,4 +1,4 @@
-import { Home, Coins, Users, History, Settings, BarChart3, Shield, Building2, CheckCircle, X } from "lucide-react";
+import { Home, Coins, Users, History, Settings, BarChart3, Shield, Building2, CheckCircle, X, UserCog } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -24,6 +24,7 @@ const presaleMenuItems = [
   { icon: Users, label: "Buyers", path: "/presale/buyers" },
   { icon: History, label: "Transactions", path: "/presale/transactions" },
   { icon: CheckCircle, label: "Verifications", path: "/presale/verifications" },
+  { icon: UserCog, label: "Admins", path: "/presale/admins" },
   { icon: Shield, label: "Settings", path: "/presale/settings" },
 ];
 

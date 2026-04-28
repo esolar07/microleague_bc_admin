@@ -1,7 +1,24 @@
 export interface IAdmin {
   data: {
-    data: { firstName?: string; lastName?: string; address: string };
+    data: {
+      id?: string;
+      firstName?: string;
+      lastName?: string;
+      address: string;
+      superAdmin?: boolean;
+      createdAt?: string;
+    };
     message: string;
     statusCode: number;
   };
+}
+
+export interface IAdminListItem {
+  id: string;
+  firstName: string;
+  lastName: string;
+  address: string;
+  superAdmin: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

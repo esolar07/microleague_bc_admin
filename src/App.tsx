@@ -13,6 +13,7 @@ import AdminVerifications from "./pages/AdminVerifications";
 import { ProtectedAdminRoute } from "./components/ProtectedAdminRoute";
 import { AdminProvider } from "./context/AdminContext";
 import AdminReputation from "./pages/AdminReputation";
+import AdminAdmins from "./pages/AdminAdmins";
 
 const App = () => (
   <AdminProvider>
@@ -82,6 +83,14 @@ const App = () => (
             element={
               <ProtectedAdminRoute>
                 <AdminVerifications />
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/presale/admins"
+            element={
+              <ProtectedAdminRoute>
+                <AdminAdmins />
               </ProtectedAdminRoute>
             }
           />

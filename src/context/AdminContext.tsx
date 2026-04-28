@@ -19,6 +19,7 @@ interface AuthContextProps {
   isAuthenticated: boolean;
   clearAuthData: () => void;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isLoading: boolean;
   error: string | null;
   address: string | null;
@@ -68,6 +69,7 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   const isAdmin = Boolean(adminData?.data?.data?.address);
+  const isSuperAdmin = Boolean(adminData?.data?.data?.superAdmin);
 
   const clearAuthData = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
@@ -180,6 +182,7 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
         isAuthenticated,
         clearAuthData,
         isAdmin,
+        isSuperAdmin,
         isLoading: overallLoading,
         error,
         address: address ?? null,
