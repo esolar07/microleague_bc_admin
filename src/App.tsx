@@ -10,6 +10,7 @@ import AdminStages from "./pages/AdminStages";
 import AdminBuyers from "./pages/AdminBuyers";
 import AdminSettings from "./pages/AdminSettings";
 import AdminVerifications from "./pages/AdminVerifications";
+import AdminPrivateSaleSubmissions from "./pages/AdminPrivateSaleSubmissions";
 import { ProtectedAdminRoute } from "./components/ProtectedAdminRoute";
 import { AdminProvider } from "./context/AdminContext";
 import AdminReputation from "./pages/AdminReputation";
@@ -83,6 +84,14 @@ const App = () => (
             element={
               <ProtectedAdminRoute>
                 <AdminVerifications />
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/presale/private-sale-submissions"
+            element={
+              <ProtectedAdminRoute>
+                <AdminPrivateSaleSubmissions />
               </ProtectedAdminRoute>
             }
           />

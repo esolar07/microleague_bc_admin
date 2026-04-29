@@ -24,6 +24,7 @@ const presaleMenuItems = [
   { icon: Users, label: "Buyers", path: "/presale/buyers" },
   { icon: History, label: "Transactions", path: "/presale/transactions" },
   { icon: CheckCircle, label: "Verifications", path: "/presale/verifications" },
+  { icon: Building2, label: "Private Sale", path: "/presale/private-sale-submissions" },
   { icon: UserCog, label: "Admins", path: "/presale/admins" },
   { icon: Shield, label: "Settings", path: "/presale/settings" },
 ];
