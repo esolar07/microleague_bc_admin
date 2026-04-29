@@ -91,7 +91,8 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    if (!isConnected || !address) {
+    // Only proceed when the connector is fully connected
+    if (status !== "connected" || !isConnected || !address) {
       clearAuthData();
       setIsLoading(false);
       return;
@@ -132,12 +133,26 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
         HttpService.setToken(jwt);
       } catch (err: any) {
         console.error("Auth failed:", err);
-        // If user rejected the signature, disconnect the wallet
-        if (err?.code === 4001 || err?.message?.includes("User rejected")) {
+        const errName = err?.name ?? "";
+        const errMsg = err?.message ?? "";
+
+        // Connector not ready yet (WalletConnect still establishing session) — silently abort
+        if (errName === "ConnectorNotConnectedError") {
+          setIsLoading(false);
+          signingRef.current = false;
+          return;
+        }
+
+        // User rejected the signature request — disconnect cleanly
+        if (
+          err?.code === 4001 ||
+          errMsg.includes("User rejected") ||
+          errMsg.includes("user rejected")
+        ) {
           setError("Signature rejected");
           wagmiDisconnect();
         } else {
-          setError(err?.message || "Authentication failed");
+          setError(errMsg || "Authentication failed");
         }
       } finally {
         signingRef.current = false;
