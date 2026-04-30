@@ -3,6 +3,7 @@ import {
   usePrivateSaleSubmissions,
   usePrivateSaleSubmissionStats,
   useVerifyPrivateSaleSubmission,
+  useCreatePrivateSaleSubmission,
 } from "@/hooks/usePrivateSaleSubmissions";
 import { PrivateSaleSubmissionStatus } from "@/types/private-sale-submission.interface";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -31,6 +32,7 @@ import {
   Eye,
   FileText,
   X,
+  Plus,
 } from "lucide-react";
 import {
   Table,
@@ -67,6 +69,20 @@ const AdminPrivateSaleSubmissions = () => {
   const [verificationNote, setVerificationNote] = useState("");
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    fullName: "",
+    email: "",
+    contact: "",
+    country: "",
+    walletAddress: "",
+    amount: "",
+    paymentMethod: "",
+    transactionRef: "",
+    paymentReference: "",
+    proofUrl: "",
+    notes: "",
+  });
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const [tokenAmount, setTokenAmount] = useState<string>("");
   const [tokenAmountManuallyEdited, setTokenAmountManuallyEdited] = useState(false);
@@ -156,6 +172,48 @@ const AdminPrivateSaleSubmissions = () => {
     usePrivateSaleSubmissions(filters);
   const { data: statsData } = usePrivateSaleSubmissionStats();
   const verifyMutation = useVerifyPrivateSaleSubmission();
+  const createMutation = useCreatePrivateSaleSubmission();
+
+  const resetCreateForm = () => {
+    setCreateForm({
+      fullName: "",
+      email: "",
+      contact: "",
+      country: "",
+      walletAddress: "",
+      amount: "",
+      paymentMethod: "",
+      transactionRef: "",
+      paymentReference: "",
+      proofUrl: "",
+      notes: "",
+    });
+    setIsCreateDialogOpen(false);
+  };
+
+  const handleCreate = () => {
+    const { fullName, email, contact, country, walletAddress, amount, paymentMethod, transactionRef, proofUrl } = createForm;
+    if (!fullName || !email || !contact || !country || !walletAddress || !amount || !paymentMethod || !transactionRef || !proofUrl) {
+      toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate(
+      {
+        fullName,
+        email,
+        contact,
+        country,
+        walletAddress,
+        amount: Number(amount),
+        paymentMethod,
+        transactionRef,
+        paymentReference: createForm.paymentReference || undefined,
+        proofUrl,
+        notes: createForm.notes || undefined,
+      },
+      { onSuccess: resetCreateForm },
+    );
+  };
 
   const resetStates = () => {
     setSelectedSubmission(null);
@@ -265,12 +323,11 @@ const AdminPrivateSaleSubmissions = () => {
     resetStates();
   };
 
-  const stats = statsData?.data || {
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    totalAmount: 0,
-  };
+  const stats =
+    submissionsData?.data?.data?.stats ||
+    statsData?.data?.data ||
+    statsData?.data ||
+    { pending: 0, approved: 0, rejected: 0, totalAmount: 0 };
 
   const submissions = submissionsData?.data?.data?.data || [];
   const pagination = submissionsData?.data?.data?.pagination || {
@@ -297,13 +354,19 @@ const AdminPrivateSaleSubmissions = () => {
   return (
     <DashboardLayout userType="admin">
       <div className="space-y-8">
-        <div>
-          <h1 className="text-[22px] font-bold text-foreground mb-1">
-            Private Sale Submissions
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Review private sale proof uploads and allocate tokens after approval.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[22px] font-bold text-foreground mb-1">
+              Private Sale Submissions
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Review private sale proof uploads and allocate tokens after approval.
+            </p>
+          </div>
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="shrink-0">
+            <Plus className="w-4 h-4 mr-2" />
+            New Submission
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -455,16 +518,16 @@ const AdminPrivateSaleSubmissions = () => {
                             Review
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-3xl bg-card border-border">
-                          <DialogHeader>
+                        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl bg-card border-border max-h-[90vh] flex flex-col">
+                          <DialogHeader className="shrink-0">
                             <DialogTitle>Review Private Sale Submission</DialogTitle>
                             <DialogDescription>
                               Verify the proof and investor details before approving allocation.
                             </DialogDescription>
                           </DialogHeader>
                           {selectedSubmission && (
-                            <div className="space-y-6">
-                              <div className="grid grid-cols-2 gap-4">
+                            <div className="overflow-y-auto flex-1 min-h-0 p-1 space-y-6">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Detail label="Investor" value={selectedSubmission.fullName} />
                                 <Detail label="Email" value={selectedSubmission.email} />
                                 <Detail label="Contact" value={selectedSubmission.contact} />
@@ -554,7 +617,7 @@ const AdminPrivateSaleSubmissions = () => {
             if (!isProcessing) setIsAllocationDialogOpen(open);
           }}
         >
-          <DialogContent className="max-w-md bg-card border-border">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md bg-card border-border">
             <DialogHeader>
               <DialogTitle>Allocate Tokens</DialogTitle>
               <DialogDescription>
@@ -611,6 +674,59 @@ const AdminPrivateSaleSubmissions = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Create Submission Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => { if (!createMutation.isPending) { setIsCreateDialogOpen(open); if (!open) resetCreateForm(); } }}>
+          <DialogContent className="w-[calc(100%-2rem)] max-w-2xl bg-card border-border max-h-[90vh] flex flex-col">
+            <DialogHeader className="shrink-0">
+              <DialogTitle>New Private Sale Submission</DialogTitle>
+              <DialogDescription>Manually create a private sale record on behalf of an investor.</DialogDescription>
+            </DialogHeader>
+            <div className="overflow-y-auto flex-1 min-h-0 p-1 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Full Name *">
+                  <Input value={createForm.fullName} onChange={(e) => setCreateForm((p) => ({ ...p, fullName: e.target.value }))} placeholder="John Doe" disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Email *">
+                  <Input type="email" value={createForm.email} onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))} placeholder="john@example.com" disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Contact *">
+                  <Input value={createForm.contact} onChange={(e) => setCreateForm((p) => ({ ...p, contact: e.target.value }))} placeholder="+1 555 000 0000" disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Country *">
+                  <Input value={createForm.country} onChange={(e) => setCreateForm((p) => ({ ...p, country: e.target.value }))} placeholder="United States" disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Wallet Address *" className="sm:col-span-2">
+                  <Input value={createForm.walletAddress} onChange={(e) => setCreateForm((p) => ({ ...p, walletAddress: e.target.value }))} placeholder="0x..." disabled={createMutation.isPending} className="font-mono text-sm" />
+                </FormField>
+                <FormField label="Amount (USD) *">
+                  <Input type="number" min="0" value={createForm.amount} onChange={(e) => setCreateForm((p) => ({ ...p, amount: e.target.value }))} placeholder="5000" disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Payment Method *">
+                  <Input value={createForm.paymentMethod} onChange={(e) => setCreateForm((p) => ({ ...p, paymentMethod: e.target.value }))} placeholder="Wire Transfer, USDT, etc." disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Transaction Reference *">
+                  <Input value={createForm.transactionRef} onChange={(e) => setCreateForm((p) => ({ ...p, transactionRef: e.target.value }))} placeholder="TXN-000001" disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Payment Reference">
+                  <Input value={createForm.paymentReference} onChange={(e) => setCreateForm((p) => ({ ...p, paymentReference: e.target.value }))} placeholder="Optional" disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Proof URL *" className="sm:col-span-2">
+                  <Input value={createForm.proofUrl} onChange={(e) => setCreateForm((p) => ({ ...p, proofUrl: e.target.value }))} placeholder="https://..." disabled={createMutation.isPending} />
+                </FormField>
+                <FormField label="Notes" className="sm:col-span-2">
+                  <Textarea value={createForm.notes} onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Any additional notes..." disabled={createMutation.isPending} rows={3} />
+                </FormField>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2 shrink-0 border-t border-border">
+              <Button variant="outline" onClick={resetCreateForm} disabled={createMutation.isPending} className="flex-1">Cancel</Button>
+              <Button onClick={handleCreate} disabled={createMutation.isPending} className="flex-1">
+                {createMutation.isPending ? "Creating..." : "Create Submission"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Paginate
           page={pagination.page}
           totalPages={pagination.totalPages}
@@ -641,6 +757,13 @@ const Detail = ({ label, value, mono = false }: { label: string; value: string; 
   <div className="space-y-1">
     <Label className="text-muted-foreground">{label}</Label>
     <p className={`${mono ? "font-mono text-xs" : "text-sm"} text-foreground break-all`}>{value}</p>
+  </div>
+);
+
+const FormField = ({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) => (
+  <div className={`space-y-1.5 ${className}`}>
+    <Label className="text-sm text-muted-foreground">{label}</Label>
+    {children}
   </div>
 );
 

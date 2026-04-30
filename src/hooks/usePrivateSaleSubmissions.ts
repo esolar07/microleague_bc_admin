@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { privateSaleSubmissionService } from "@/services/privateSaleSubmission.service";
+import { privateSaleSubmissionService, CreatePrivateSaleSubmissionData } from "@/services/privateSaleSubmission.service";
 import {
   PrivateSaleSubmissionFilters,
   PrivateSaleSubmissionStatus,
@@ -27,6 +27,23 @@ export const usePrivateSaleSubmissionStats = () =>
     queryFn: () => privateSaleSubmissionService.getStats(),
     staleTime: 2 * 60 * 1000,
   });
+
+export const useCreatePrivateSaleSubmission = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreatePrivateSaleSubmissionData) =>
+      privateSaleSubmissionService.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: privateSaleSubmissionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: privateSaleSubmissionKeys.stats() });
+      toast.success("Private sale submission created successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to create submission");
+    },
+  });
+};
 
 export const useVerifyPrivateSaleSubmission = () => {
   const queryClient = useQueryClient();
