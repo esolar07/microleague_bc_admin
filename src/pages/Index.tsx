@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect } from "react";
 import { useAdmin } from "@/hooks/useAdmin";
+import { ConnectWalletButton } from "@/components/ConnectWalletButton";
 
 const Index = () => {
-  const { isAuthenticated, isAdmin, isLoading } = useAdmin();
+  const { isAuthenticated, isAdmin, isLoading, error } = useAdmin();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -13,13 +13,13 @@ const Index = () => {
     }
   }, [isLoading, isAuthenticated, isAdmin, navigate]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#050a1a]">
-        <div className="animate-spin h-20 w-20 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <div className="flex items-center justify-center min-h-screen bg-[#050a1a]">
+  //       <div className="animate-spin h-20 w-20 border-4 border-primary border-t-transparent rounded-full"></div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#050a1a] flex items-center justify-center">
@@ -62,8 +62,14 @@ const Index = () => {
             </p>
 
             <div className="flex justify-center">
-              <ConnectButton />
+              <ConnectWalletButton />
             </div>
+
+            {error && (
+              <div className="mt-6 text-yellow-400 text-center font-medium">
+                <p>{error}</p>
+              </div>
+            )}
 
             {isAuthenticated && !isAdmin && !isLoading && (
               <div className="mt-6 text-red-400 text-center font-medium">
