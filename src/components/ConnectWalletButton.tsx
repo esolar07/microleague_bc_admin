@@ -33,11 +33,6 @@ export const ConnectWalletButton = () => {
   return (
     <div className="flex flex-col items-center gap-3">
       <ConnectButton />
-      {isWrongNetwork && (
-        <div className="text-sm text-yellow-400 text-center">
-          ⚠️ Wrong network detected. Please switch to {baseSepolia.name}
-        </div>
-      )}
     </div>
   );
 };
