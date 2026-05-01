@@ -12,10 +12,10 @@ export interface CreatePrivateSaleSubmissionData {
   country: string;
   walletAddress: string;
   amount: number;
-  paymentMethod: string;
-  transactionRef: string;
+  paymentMethod?: string;
+  transactionRef?: string;
   paymentReference?: string;
-  proofUrl: string;
+  proofUrl?: string;
   notes?: string;
 }
 

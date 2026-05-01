@@ -956,7 +956,7 @@ const AdminDashboard = () => {
                         Claimed
                       </TableHead>
                       <TableHead className="text-muted-foreground">
-                        Status
+                        Referrals
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1006,12 +1006,7 @@ const AdminDashboard = () => {
                             {formatterNumber(buyer.claimed || 0)}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className="border-primary text-primary bg-primary/10"
-                            >
-                              {buyer.status}
-                            </Badge>
+                            {buyer.referrals ?? 0}
                           </TableCell>
                         </TableRow>
                       ))

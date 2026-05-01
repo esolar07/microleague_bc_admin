@@ -33,6 +33,7 @@ import {
   FileText,
   X,
   Plus,
+  Upload,
 } from "lucide-react";
 import {
   Table,
@@ -83,6 +84,8 @@ const AdminPrivateSaleSubmissions = () => {
     proofUrl: "",
     notes: "",
   });
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const [tokenAmount, setTokenAmount] = useState<string>("");
   const [tokenAmountManuallyEdited, setTokenAmountManuallyEdited] = useState(false);
@@ -174,6 +177,45 @@ const AdminPrivateSaleSubmissions = () => {
   const verifyMutation = useVerifyPrivateSaleSubmission();
   const createMutation = useCreatePrivateSaleSubmission();
 
+  const uploadProofFile = async (file: File): Promise<string> => {
+    const CLOUDINARY_CLOUD_NAME = "dnyafkpqs";
+    const CLOUDINARY_UPLOAD_PRESET = "microleague_bank_transfer";
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("folder", "private-sale-proofs");
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      { method: "POST", body: formData },
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as any).error?.message || "Failed to upload proof");
+    }
+    const result = (await response.json()) as any;
+    return result.secure_url;
+  };
+
+  const handleProofFileChange = async (file: File | null) => {
+    if (!file) {
+      setProofFile(null);
+      setCreateForm((p) => ({ ...p, proofUrl: "" }));
+      return;
+    }
+    setProofFile(file);
+    setIsUploadingProof(true);
+    try {
+      const url = await uploadProofFile(file);
+      setCreateForm((p) => ({ ...p, proofUrl: url }));
+    } catch {
+      toast({ title: "Upload failed", description: "Could not upload proof file.", variant: "destructive" });
+      setProofFile(null);
+      setCreateForm((p) => ({ ...p, proofUrl: "" }));
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
+
   const resetCreateForm = () => {
     setCreateForm({
       fullName: "",
@@ -188,12 +230,13 @@ const AdminPrivateSaleSubmissions = () => {
       proofUrl: "",
       notes: "",
     });
+    setProofFile(null);
     setIsCreateDialogOpen(false);
   };
 
   const handleCreate = () => {
-    const { fullName, email, contact, country, walletAddress, amount, paymentMethod, transactionRef, proofUrl } = createForm;
-    if (!fullName || !email || !contact || !country || !walletAddress || !amount || !paymentMethod || !transactionRef || !proofUrl) {
+    const { fullName, email, contact, country, walletAddress, amount } = createForm;
+    if (!fullName || !email || !contact || !country || !walletAddress || !amount) {
       toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
@@ -205,10 +248,10 @@ const AdminPrivateSaleSubmissions = () => {
         country,
         walletAddress,
         amount: Number(amount),
-        paymentMethod,
-        transactionRef,
+        paymentMethod: createForm.paymentMethod || undefined,
+        transactionRef: createForm.transactionRef || undefined,
         paymentReference: createForm.paymentReference || undefined,
-        proofUrl,
+        proofUrl: createForm.proofUrl || undefined,
         notes: createForm.notes || undefined,
       },
       { onSuccess: resetCreateForm },
@@ -471,7 +514,7 @@ const AdminPrivateSaleSubmissions = () => {
                     <TableCell className="font-semibold text-success">
                       ${submission.amount.toLocaleString()}
                     </TableCell>
-                    <TableCell>{submission.paymentMethod}</TableCell>
+                    <TableCell>{submission.paymentMethod ?? '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(submission.createdAt).toLocaleDateString("en-US", {
                         month: "short",
@@ -533,32 +576,34 @@ const AdminPrivateSaleSubmissions = () => {
                                 <Detail label="Contact" value={selectedSubmission.contact} />
                                 <Detail label="Country" value={selectedSubmission.country} />
                                 <Detail label="Amount" value={`$${selectedSubmission.amount.toLocaleString()}`} />
-                                <Detail label="Payment Method" value={selectedSubmission.paymentMethod} />
-                                <Detail label="Reference" value={selectedSubmission.transactionRef} />
+                                <Detail label="Payment Method" value={selectedSubmission.paymentMethod ?? '—'} />
+                                <Detail label="Reference" value={selectedSubmission.transactionRef ?? '—'} />
                                 <Detail label="Wallet" value={selectedSubmission.walletAddress} mono />
                               </div>
 
-                              <div className="space-y-2">
-                                <Label className="text-muted-foreground">Proof</Label>
-                                {selectedSubmission.proofUrl.toLowerCase().includes(".pdf") ? (
-                                  <a
-                                    href={selectedSubmission.proofUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-primary underline"
-                                  >
-                                    Open uploaded PDF proof
-                                  </a>
-                                ) : (
-                                  <div className="border border-border rounded-lg overflow-hidden">
-                                    <img
-                                      src={selectedSubmission.proofUrl}
-                                      alt="Private sale proof"
-                                      className="w-full h-64 object-cover"
-                                    />
-                                  </div>
-                                )}
-                              </div>
+                              {selectedSubmission.proofUrl ? (
+                                <div className="space-y-2">
+                                  <Label className="text-muted-foreground">Proof</Label>
+                                  {selectedSubmission.proofUrl.toLowerCase().includes(".pdf") ? (
+                                    <a
+                                      href={selectedSubmission.proofUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-primary underline"
+                                    >
+                                      Open uploaded PDF proof
+                                    </a>
+                                  ) : (
+                                    <div className="border border-border rounded-lg overflow-hidden">
+                                      <img
+                                        src={selectedSubmission.proofUrl}
+                                        alt="Private sale proof"
+                                        className="w-full h-64 object-cover"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              ) : null}
 
                               {selectedSubmission.notes ? (
                                 <div className="space-y-2">
@@ -701,17 +746,56 @@ const AdminPrivateSaleSubmissions = () => {
                 <FormField label="Amount (USD) *">
                   <Input type="number" min="0" value={createForm.amount} onChange={(e) => setCreateForm((p) => ({ ...p, amount: e.target.value }))} placeholder="5000" disabled={createMutation.isPending} />
                 </FormField>
-                <FormField label="Payment Method *">
+                <FormField label="Payment Method">
                   <Input value={createForm.paymentMethod} onChange={(e) => setCreateForm((p) => ({ ...p, paymentMethod: e.target.value }))} placeholder="Wire Transfer, USDT, etc." disabled={createMutation.isPending} />
                 </FormField>
-                <FormField label="Transaction Reference *">
+                <FormField label="Transaction Reference">
                   <Input value={createForm.transactionRef} onChange={(e) => setCreateForm((p) => ({ ...p, transactionRef: e.target.value }))} placeholder="TXN-000001" disabled={createMutation.isPending} />
                 </FormField>
                 <FormField label="Payment Reference">
                   <Input value={createForm.paymentReference} onChange={(e) => setCreateForm((p) => ({ ...p, paymentReference: e.target.value }))} placeholder="Optional" disabled={createMutation.isPending} />
                 </FormField>
-                <FormField label="Proof URL *" className="sm:col-span-2">
-                  <Input value={createForm.proofUrl} onChange={(e) => setCreateForm((p) => ({ ...p, proofUrl: e.target.value }))} placeholder="https://..." disabled={createMutation.isPending} />
+                <FormField label="Proof" className="sm:col-span-2">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="createProofFile"
+                      className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:border-primary/50 transition-colors ${createMutation.isPending || isUploadingProof ? "opacity-50 pointer-events-none" : ""}`}
+                    >
+                      <Upload className="w-8 h-8 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Click to upload proof image or PDF</span>
+                      <input
+                        id="createProofFile"
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={(e) => handleProofFileChange(e.target.files?.[0] || null)}
+                        disabled={createMutation.isPending || isUploadingProof}
+                      />
+                    </label>
+                    {isUploadingProof && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4 animate-spin" />
+                        Uploading...
+                      </div>
+                    )}
+                    {proofFile && createForm.proofUrl && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 p-2 bg-success/10 rounded-lg">
+                          <CheckCircle className="w-4 h-4 text-success shrink-0" />
+                          <p className="text-sm font-medium text-success truncate">{proofFile.name}</p>
+                        </div>
+                        {proofFile.type.startsWith("image/") ? (
+                          <div className="border border-border rounded-lg overflow-hidden">
+                            <img src={createForm.proofUrl} alt="Proof preview" className="w-full h-48 object-cover" />
+                          </div>
+                        ) : (
+                          <a href={createForm.proofUrl} target="_blank" rel="noreferrer" className="text-sm text-primary underline">
+                            View uploaded PDF
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </FormField>
                 <FormField label="Notes" className="sm:col-span-2">
                   <Textarea value={createForm.notes} onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Any additional notes..." disabled={createMutation.isPending} rows={3} />
