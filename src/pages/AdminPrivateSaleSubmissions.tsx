@@ -234,10 +234,16 @@ const AdminPrivateSaleSubmissions = () => {
     setIsCreateDialogOpen(false);
   };
 
+  const isValidEthAddress = (addr: string) => /^0x[0-9a-fA-F]{40}$/.test(addr);
+
   const handleCreate = () => {
     const { fullName, email, contact, country, walletAddress, amount } = createForm;
     if (!fullName || !email || !contact || !country || !walletAddress || !amount) {
       toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
+      return;
+    }
+    if (!isValidEthAddress(walletAddress)) {
+      toast({ title: "Invalid wallet address", description: "Please enter a valid Ethereum address (0x followed by 40 hex characters).", variant: "destructive" });
       return;
     }
     createMutation.mutate(
@@ -741,7 +747,16 @@ const AdminPrivateSaleSubmissions = () => {
                   <Input value={createForm.country} onChange={(e) => setCreateForm((p) => ({ ...p, country: e.target.value }))} placeholder="United States" disabled={createMutation.isPending} />
                 </FormField>
                 <FormField label="Wallet Address *" className="sm:col-span-2">
-                  <Input value={createForm.walletAddress} onChange={(e) => setCreateForm((p) => ({ ...p, walletAddress: e.target.value }))} placeholder="0x..." disabled={createMutation.isPending} className="font-mono text-sm" />
+                  <Input
+                    value={createForm.walletAddress}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, walletAddress: e.target.value }))}
+                    placeholder="0x..."
+                    disabled={createMutation.isPending}
+                    className={`font-mono text-sm ${createForm.walletAddress && !isValidEthAddress(createForm.walletAddress) ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                  />
+                  {createForm.walletAddress && !isValidEthAddress(createForm.walletAddress) && (
+                    <p className="text-xs text-destructive mt-1">Must be a valid Ethereum address (0x + 40 hex chars)</p>
+                  )}
                 </FormField>
                 <FormField label="Amount (USD) *">
                   <Input type="number" min="0" value={createForm.amount} onChange={(e) => setCreateForm((p) => ({ ...p, amount: e.target.value }))} placeholder="5000" disabled={createMutation.isPending} />
