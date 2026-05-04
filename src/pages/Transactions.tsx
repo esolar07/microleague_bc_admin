@@ -316,7 +316,7 @@ const Transactions = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Avg Transaction</p>
-                <p className="text-3xl font-bold text-accent">
+                <p className="text-3xl font-bold text-accent text-purple-500">
                   ${formatterNumber(stats.averageTransactionSize, 2)}
                 </p>
               </div>

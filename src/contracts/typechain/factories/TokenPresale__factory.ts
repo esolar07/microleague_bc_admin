@@ -655,6 +655,11 @@ const _abi = [
         name: "tokenAmount",
         type: "uint256",
       },
+      {
+        internalType: "uint256",
+        name: "usdValue",
+        type: "uint256",
+      },
     ],
     name: "adminAddPurchase",
     outputs: [],

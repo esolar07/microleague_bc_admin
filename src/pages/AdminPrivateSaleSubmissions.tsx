@@ -86,7 +86,9 @@ const AdminPrivateSaleSubmissions = () => {
   });
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const [presaleTokenPrice, setPresaleTokenPrice] = useState<string>("");
   const [selectedStageId, setSelectedStageId] = useState<string>("");
+  const [privateSalePrice, setPrivateSalePrice] = useState<string>("0.015");
   const [tokenAmount, setTokenAmount] = useState<string>("");
   const [tokenAmountManuallyEdited, setTokenAmountManuallyEdited] = useState(false);
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined);
@@ -151,14 +153,27 @@ const AdminPrivateSaleSubmissions = () => {
       .filter(Boolean);
   }, [stageContracts]);
 
+  // Sync the declared private sale price into the allocation dialog price field
   useEffect(() => {
-    if (tokenAmountManuallyEdited || !selectedSubmission || !selectedStageId) return;
+    if (!presaleTokenPrice || parseFloat(presaleTokenPrice) <= 0) return;
+    setPrivateSalePrice(presaleTokenPrice);
+    setTokenAmountManuallyEdited(false);
+  }, [presaleTokenPrice]);
 
-    const stage = stages.find((item: any) => item.id.toString() === selectedStageId);
-    if (!stage || stage.price <= 0) return;
+  // Recalculate token amount when private sale price changes
+  useEffect(() => {
+    if (tokenAmountManuallyEdited || !selectedSubmission || !privateSalePrice) return;
+    const price = parseFloat(privateSalePrice);
+    if (!price || price <= 0) return;
+    setTokenAmount(String(parseFloat((selectedSubmission.amount / price).toFixed(4))));
+  }, [privateSalePrice, selectedSubmission, tokenAmountManuallyEdited]);
 
-    setTokenAmount((selectedSubmission.amount / stage.price).toFixed(4));
-  }, [selectedStageId, selectedSubmission, stages, tokenAmountManuallyEdited]);
+  const tokenDollarValue = useMemo(() => {
+    const price = parseFloat(privateSalePrice);
+    const tokens = parseFloat(tokenAmount);
+    if (!price || !tokens || isNaN(price) || isNaN(tokens)) return null;
+    return tokens * price;
+  }, [privateSalePrice, tokenAmount]);
 
   const { writeContractAsync, isPending: isWriting } = useWriteContract();
   const {
@@ -268,6 +283,7 @@ const AdminPrivateSaleSubmissions = () => {
     setSelectedSubmission(null);
     setVerificationNote("");
     setSelectedStageId("");
+    setPrivateSalePrice("");
     setTokenAmount("");
     setTokenAmountManuallyEdited(false);
     setTransactionHash(undefined);
@@ -294,6 +310,7 @@ const AdminPrivateSaleSubmissions = () => {
           selectedSubmission.walletAddress as `0x${string}`,
           BigInt(selectedStageId),
           parseUnits(tokenAmount, decimals),
+          parseUnits(selectedSubmission.amount.toFixed(6), 18),
         ],
         account: address,
         chain: undefined,
@@ -412,10 +429,31 @@ const AdminPrivateSaleSubmissions = () => {
               Review private sale proof uploads and allocate tokens after approval.
             </p>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="shrink-0">
-            <Plus className="w-4 h-4 mr-2" />
-            New Submission
-          </Button>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="presaleTokenPrice" className="text-sm text-muted-foreground whitespace-nowrap">
+                Private Sale Price
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <Input
+                  id="presaleTokenPrice"
+                  type="number"
+                  step="0.000001"
+                  min="0"
+                  value={presaleTokenPrice}
+                  onChange={(e) => setPresaleTokenPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="pl-7 w-36"
+                />
+              </div>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">/ token</span>
+            </div>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Submission
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -685,11 +723,44 @@ const AdminPrivateSaleSubmissions = () => {
                   <SelectContent>
                     {stages.map((stage) => (
                       <SelectItem key={stage.id} value={stage.id.toString()}>
-                        {stage.name} - {formatNumber(stage.price, 4)} per token
+                        {stage.name} {"(Private Sale)"}{/* — {formatNumber(stage.price, 6)} per token */}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="privateSalePrice">
+                  Private Sale Price ($ per token)
+                </Label>
+                <Input
+                  id="privateSalePrice"
+                  type="number"
+                  step="0.000001"
+                  min="0"
+                  value={privateSalePrice}
+                  onChange={(e) => {
+                    setPrivateSalePrice(e.target.value);
+                    setTokenAmountManuallyEdited(false);
+                  }}
+                  placeholder="Enter custom price..."
+                  disabled={isProcessing || !selectedStageId}
+                />
+                {selectedStageId && privateSalePrice && (() => {
+                  const stage = stages.find((s: any) => s.id.toString() === selectedStageId);
+                  const price = parseFloat(privateSalePrice);
+                  if (!stage || !price) return null;
+                  const discount = ((stage.price - price) / stage.price) * 100;
+                  if (discount > 0) {
+                    return (
+                      <p className="text-xs text-success">
+                        {discount.toFixed(1)}% discount off the {formatNumber(stage.price, 2)} stage price
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               <div className="space-y-2">
@@ -704,20 +775,25 @@ const AdminPrivateSaleSubmissions = () => {
                     setTokenAmountManuallyEdited(true);
                     setTokenAmount(e.target.value);
                   }}
-                  disabled={isProcessing}
+                  disabled={isProcessing || !privateSalePrice}
                 />
-                {selectedStageId && selectedSubmission ? (
+                {selectedSubmission && privateSalePrice && parseFloat(privateSalePrice) > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    ${selectedSubmission.amount.toLocaleString()} translated at the selected stage price.
+                    <span className="text-foreground font-medium">${selectedSubmission.amount.toLocaleString()}</span> paid
+                    {" "}÷{" "}
+                    <span className="text-foreground font-medium">{formatNumber(parseFloat(privateSalePrice), 2)}</span>/token
+                    {tokenAmount && parseFloat(tokenAmount) > 0 && (
+                      <> = <span className="text-foreground font-medium">{parseFloat(tokenAmount).toLocaleString()} MLC</span></>
+                    )}
                   </p>
-                ) : null}
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" onClick={() => setIsAllocationDialogOpen(false)} disabled={isProcessing} className="flex-1">
                   Cancel
                 </Button>
-                <Button onClick={handleAllocateTokens} disabled={!selectedStageId || !tokenAmount || isProcessing} className="flex-1">
+                <Button onClick={handleAllocateTokens} disabled={!selectedStageId || !privateSalePrice || !tokenAmount || isProcessing} className="flex-1">
                   {isProcessing ? "Processing..." : "Allocate Tokens"}
                 </Button>
               </div>

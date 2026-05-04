@@ -855,7 +855,7 @@ export interface TokenPresale extends BaseContract {
   >;
 
   adminAddPurchase: TypedContractMethod<
-    [buyer: AddressLike, stageId: BigNumberish, tokenAmount: BigNumberish],
+    [buyer: AddressLike, stageId: BigNumberish, tokenAmount: BigNumberish, usdValue: BigNumberish],
     [void],
     "nonpayable"
   >;

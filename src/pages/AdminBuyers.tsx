@@ -145,21 +145,7 @@ const AdminBuyers = () => {
     filters.status !== "All" ||
     filters.sort !== "volume-desc";
 
-  // Create dummy buyer
-  const handleCreateDummyBuyer = () => {
-    createMutation.mutate({
-      walletAddress: `0x${Math.random().toString(16).substr(2, 40)}`,
-      tokensPurchased: Math.floor(Math.random() * 300000) + 50000,
-      amountSpent: Math.floor(Math.random() * 15000) + 5000,
-      claimed: Math.floor(Math.random() * 100000),
-      unclaimed: Math.floor(Math.random() * 200000),
-      referrals: Math.floor(Math.random() * 10),
-      joinDate: new Date(
-        Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000,
-      ).toISOString(),
-      status: Math.random() > 0.2 ? BuyerStatus.ACTIVE : BuyerStatus.INACTIVE,
-    });
-  };
+  
 
   // Extract data with proper fallbacks
   const stats = statsResponse?.data?.data?.data || {

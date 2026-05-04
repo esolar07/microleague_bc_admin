@@ -212,7 +212,7 @@ const AdminVerifications = () => {
     if (!stage || stage.price <= 0) return;
     const dollars = parseFloat(selectedTransaction.amount);
     if (isNaN(dollars) || dollars <= 0) return;
-    setTokenAmount((dollars / stage.price).toFixed(4));
+    setTokenAmount(String(parseFloat((dollars / stage.price).toFixed(4))));
   }, [selectedStageId, selectedTransaction, stages, tokenAmountManuallyEdited]);
 
   // Contract write hook
@@ -306,9 +306,15 @@ const AdminVerifications = () => {
         buyer: selectedTransaction.walletAddress,
         stageId: selectedStageId,
         tokenAmount: tokenAmountBigInt.toString(),
+        usdValue: selectedTransaction.amount,
       });
 
       // Call adminAddPurchase contract function
+      const usdValueBigInt = parseUnits(
+        parseFloat(String(selectedTransaction.amount)).toFixed(6),
+        18,
+      );
+
       const hash = await writeContractAsync({
         address: tokenPresaleAddress,
         abi: tokenPresaleAbi,
@@ -317,6 +323,7 @@ const AdminVerifications = () => {
           selectedTransaction.walletAddress as `0x${string}`,
           BigInt(selectedStageId),
           tokenAmountBigInt,
+          usdValueBigInt,
         ],
         account: address,
         chain: undefined,
@@ -1262,7 +1269,7 @@ const AdminVerifications = () => {
                           <div className="flex items-center justify-between w-full">
                             <span className="font-medium">{stage.name}</span>
                             <span className="ml-3">
-                              {formatNumber(stage.price, 4)} per token
+                              {formatNumber(stage.price, 2)} per token
                             </span>
                           </div>
                         </SelectItem>
@@ -1295,7 +1302,7 @@ const AdminVerifications = () => {
                   const stage = stages.find((s: any) => s.id.toString() === selectedStageId);
                   return stage ? (
                     <p className="text-xs text-muted-foreground">
-                      ${selectedTransaction.amount.toLocaleString()} ÷ ${parseFloat(stage.price.toFixed(6))}/token
+                      ${selectedTransaction.amount.toLocaleString()} ÷ {formatNumber(stage.price, 2)}/token
                       {tokenAmountManuallyEdited && (
                         <button
                           type="button"
