@@ -818,7 +818,7 @@ const AdminDashboard = () => {
               Monitor and manage your token presale
             </p>
           </div>
-          <div className="flex gap-3">
+          {/* <div className="flex gap-3">
             {contractPaused ? (
               <Button
                 onClick={handleUnpause}
@@ -839,7 +839,7 @@ const AdminDashboard = () => {
                 {isPausingContract ? "Pausing..." : "Pause Presale"}
               </Button>
             )}
-          </div>
+          </div> */}
         </div>
 
         {/* Stats Grid */}
