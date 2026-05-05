@@ -3,6 +3,7 @@ import {
   useTransactions,
   useTransactionStats,
 } from "@/hooks/transaction.hooks";
+import { txExplorerUrl } from "@/config/network";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -157,7 +158,7 @@ const Transactions = () => {
 
   // View on explorer
   const handleViewOnExplorer = (txHash: string) => {
-    window.open(`https://sepolia.etherscan.io/tx/${txHash}`, "_blank");
+    window.open(txExplorerUrl(txHash), "_blank");
   };
 
   // Format timestamp to date
