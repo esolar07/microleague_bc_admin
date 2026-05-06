@@ -14,7 +14,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Play, Pause, Crown, Percent } from "lucide-react";
+import { Pause, Crown, Percent } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,8 +45,10 @@ import {
   tokenPresaleAbi,
 } from "@/lib/contracts/tokenPresale";
 import { useTopBuyers } from "@/hooks/useBuyers";
+import { usePrivateSaleSubmissionStats } from "@/hooks/usePrivateSaleSubmissions";
 import { Link } from "react-router-dom";
 import { DollarIcon, InfoIcon, SoldIcon, UserIcon } from "@/components/icons";
+import { Lock, Globe } from "lucide-react";
 
 const parseAmount = (value: bigint, decimals: number) => {
   const parsed = parseFloat(formatUnits(value, decimals));
@@ -145,6 +147,11 @@ const AdminDashboard = () => {
   } = useTopBuyers({ limit: 5 });
 
   const topBuyers = useMemo(() => topBuyersResponse?.data?.data?.data ?? [], [topBuyersResponse]);
+
+  const {
+    data: privateSaleStatsResponse,
+    isLoading: isPrivateSaleStatsLoading,
+  } = usePrivateSaleSubmissionStats();
 
   const publicClient = usePublicClient();
   const queryClient = useQueryClient();
@@ -698,7 +705,7 @@ const AdminDashboard = () => {
   }, [stages]);
 
   const totalStats = useMemo(() => {
-    const totalRaised = stages.reduce(
+    const publicRaised = stages.reduce(
       (sum, stage) => sum + (stage?.raisedUsd || 0),
       0,
     );
@@ -708,12 +715,20 @@ const AdminDashboard = () => {
       0,
     );
 
+    const privateRaised = privateSaleStatsResponse?.data?.data?.totalAmount ?? 0;
+    const combinedRaised = publicRaised + privateRaised;
+
     return {
-      totalRaised: formatNumber(totalRaised),
+      totalRaised: formatNumber(combinedRaised),
+      publicRaised: formatNumber(publicRaised),
+      privateRaised: formatNumber(privateRaised),
       tokensSold: formatterNumber(totalSold),
       activeBuyers: topBuyers.length.toString(),
+      privateApproved: privateSaleStatsResponse?.data?.data?.approved ?? 0,
+      privatePending: privateSaleStatsResponse?.data?.data?.pending ?? 0,
+      privateRejected: privateSaleStatsResponse?.data?.data?.rejected ?? 0,
     };
-  }, [stages, topBuyers]);
+  }, [stages, topBuyers, privateSaleStatsResponse]);
 
   const isLoading = isLoadingStageCount || isLoadingStages || isFetchingStages;
 
@@ -845,7 +860,7 @@ const AdminDashboard = () => {
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <StatsCard
-            title="Total Raised"
+            title="Total Raised (Combined)"
             value={totalStats.totalRaised}
             icon={DollarIcon}
           />
@@ -859,6 +874,65 @@ const AdminDashboard = () => {
             value={totalStats.activeBuyers}
             icon={UserIcon}
           />
+        </div>
+
+        {/* Private vs Public Presale Breakdown */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="cardShadow bg-white p-5 rounded-[20px] border-none">
+            <div className="flex items-center gap-2 mb-4">
+              <Globe className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-medium text-foreground">Public Presale</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <span className="text-sm text-muted-foreground">Amount Raised</span>
+                <span className="text-lg font-semibold text-primary">{totalStats.publicRaised}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50 border border-border">
+                <span className="text-sm text-muted-foreground">Tokens Sold</span>
+                <span className="text-sm font-semibold text-foreground">{totalStats.tokensSold}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50 border border-border">
+                <span className="text-sm text-muted-foreground">Active Stages</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {stages.filter((s) => s?.status === "Active").length} / {stages.length}
+                </span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="cardShadow bg-white p-5 rounded-[20px] border-none">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-5 h-5 text-warning" />
+              <h3 className="text-lg font-medium text-foreground">Private Presale</h3>
+            </div>
+            {isPrivateSaleStatsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-warning/5 border border-warning/20">
+                  <span className="text-sm text-muted-foreground">Amount Raised</span>
+                  <span className="text-lg font-semibold text-warning">{totalStats.privateRaised}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50 border border-border">
+                  <span className="text-sm text-muted-foreground">Approved</span>
+                  <Badge variant="outline" className="border-success text-success bg-success/10">
+                    {totalStats.privateApproved}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50 border border-border">
+                  <span className="text-sm text-muted-foreground">Pending</span>
+                  <Badge variant="outline" className="border-warning text-warning bg-warning/10">
+                    {totalStats.privatePending}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </Card>
         </div>
 
         {/* Current Stage & Quick Actions */}
