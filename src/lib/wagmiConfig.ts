@@ -1,6 +1,9 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { base, baseSepolia, mainnet, sepolia } from "wagmi/chains";
+import { base, baseSepolia } from "wagmi/chains";
 import { http } from "wagmi";
+
+const isMainnet = import.meta.env.VITE_NETWORK === "base";
+const activeChain = isMainnet ? base : baseSepolia;
 
 export const wagmiConfig = getDefaultConfig({
   appName: "MicroLeague Coin Admin",
@@ -9,12 +12,11 @@ export const wagmiConfig = getDefaultConfig({
   appUrl: "https://microleague-bc-admin.vercel.app",
   appIcon: "https://microleague-bc-admin.vercel.app/assets/images/logo.webp",
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
-  chains: [base, baseSepolia],
+  chains: [activeChain],
   transports: {
-    [base.id]: http(),
-    [baseSepolia.id]: http(),
+    [activeChain.id]: http(),
   },
   ssr: false,
 });
 
-export const supportedChains = [base, baseSepolia];
+export const supportedChains = [activeChain];

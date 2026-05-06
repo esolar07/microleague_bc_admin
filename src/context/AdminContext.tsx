@@ -16,10 +16,13 @@ import { HttpService } from "@/services/base.service";
 import { authService } from "@/services/auth.service";
 import { IAdmin } from "@/types/admin.interface";
 import { adminService } from "@/services/admin.service";
-import { baseSepolia } from "wagmi/chains";
+import { base, baseSepolia } from "wagmi/chains";
 
 const TOKEN_KEY = "mlc_admin_jwt";
-const REQUIRED_CHAIN_ID = baseSepolia.id;
+
+const isMainnet = import.meta.env.VITE_NETWORK === "base";
+const REQUIRED_CHAIN = isMainnet ? base : baseSepolia;
+const REQUIRED_CHAIN_ID = REQUIRED_CHAIN.id;
 
 interface AuthContextProps {
   token: string | null;
@@ -48,7 +51,7 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
   const signingRef = useRef(false);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
-  const { address, isConnected, status, connector, chain, chainId } =
+  const { address, isConnected, status, connector, chainId } =
     useAccount();
   const { disconnect: wagmiDisconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
@@ -138,9 +141,9 @@ const AdminProvider = ({ children }: { children: React.ReactNode }) => {
     // Check if user is on the wrong network
     if (isWrongNetwork) {
       console.log(
-        `Wrong network detected. Current: ${chainId}, Required: ${REQUIRED_CHAIN_ID} (${baseSepolia.name})`,
+        `Wrong network detected. Current: ${chainId}, Required: ${REQUIRED_CHAIN_ID} (${REQUIRED_CHAIN.name})`,
       );
-      setError(`Please switch to ${baseSepolia.name} network`);
+      setError(`Please switch to ${REQUIRED_CHAIN.name} network`);
       setIsLoading(false);
 
       // Attempt to switch network automatically
